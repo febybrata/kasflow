@@ -1,0 +1,57 @@
+name: Supabase Keep-Alive
+
+# Tujuan: ping Supabase REST API secara berkala agar project Free tier
+# tidak dipause otomatis setelah 7 hari tanpa aktivitas.
+#
+# Setup yang dibutuhkan (satu kali, di GitHub web):
+# 1. Buka repo → Settings → Secrets and variables → Actions
+# 2. Tambahkan 2 secrets:
+#    - SUPABASE_URL       (value: NEXT_PUBLIC_SUPABASE_URL dari .env.local)
+#    - SUPABASE_ANON_KEY  (value: NEXT_PUBLIC_SUPABASE_ANON_KEY dari .env.local)
+
+on:
+  # Cron schedule: Senin–Jumat pukul 00:00 UTC
+  # Format: 'menit jam hari bulan hari-minggu'
+  # 0 0 * * 1-5 = jam 00:00, hari kerja (1=Senin .. 5=Jumat)
+  schedule:
+    - cron: '0 0 * * 1-5'
+
+  # Trigger manual dari tab Actions → "Run workflow" (untuk testing)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Pinging $SUPABASE_URL ..."
+
+          # Query paling minimal: SELECT id, LIMIT 1 pada business_profiles.
+          # Pakai Anon Key karena query ini tidak butuh autentikasi user —
+          # service role tidak diperlukan di sini.
+          response=$(curl -sS -w "\n__HTTP_STATUS__:%{http_code}" \
+            -G \
+            --data-urlencode "select=id" \
+            --data-urlencode "limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/rest/v1/business_profiles")
+
+          http_code=$(echo "$response" | grep "__HTTP_STATUS__:" | cut -d: -f2)
+          body=$(echo "$response" | grep -v "__HTTP_STATUS__:")
+
+          echo "HTTP Status: $http_code"
+          echo "Response body: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Keep-alive FAILED (HTTP $http_code)"
+            exit 1
+          fi
+
+          echo "✅ Keep-alive SUCCESS — Supabase project aktif"

@@ -1,6 +1,6 @@
 # KasFlow — Keep-Alive Supabase
 
-> Sumber utama: `app/api/keepalive/route.ts`, `vercel.json`.
+> Sumber utama: `.github/workflows/keep-alive.yml`, `vercel.json`.
 > Tujuan: Menjaga Supabase Free project tetap aktif agar tidak dipause otomatis setelah 7 hari tanpa aktivitas.
 
 ---
@@ -9,266 +9,269 @@
 
 Project Supabase Free tier akan **dipause otomatis** jika tidak menerima aktivitas apa pun selama **7 hari**. Setelah dipause, project harus di-unpause secara manual melalui dashboard, dan prosesnya dapat memakan waktu cukup lama.
 
-Untuk mencegah hal ini, KasFlow menjalankan **ping berkala** ke database Supabase melalui endpoint khusus yang dipanggil oleh scheduler otomatis.
+Untuk mencegah hal ini, KasFlow menjalankan **ping berkala** ke REST API Supabase melalui GitHub Actions.
 
 ---
 
-## 2. Cara Kerja
+## 2. Mengapa GitHub Actions (bukan Vercel Cron)?
+
+Versi awal implementasi menggunakan **Vercel Cron + endpoint Next.js** (`/api/keepalive`). Saat diuji, ternyata endpoint tidak bisa diakses publik karena project terlindungi **Vercel Deployment Protection** (Vercel SSO wall) — fitur keamanan yang memblokir semua request tak terautentikasi ke deployment Vercel.
+
+Karena Vercel Cron sendiri mengirim HTTP request biasa (yang juga kena SSO wall), pendekatan ini tidak akan bekerja. Solusinya: **pin Supabase REST API langsung dari GitHub Actions**, yang berjalan di infrastruktur GitHub — bukan Vercel — sehingga tidak kena Deployment Protection.
+
+**Keuntungan arsitektur saat ini:**
+
+- ✅ Tidak kena Vercel Deployment Protection
+- ✅ Tidak butuh endpoint Next.js tambahan (less code)
+- ✅ Tidak pakai Vercel Cron quota
+- ✅ GitHub Actions Free: 2000 menit/bulan (lebih dari cukup untuk 1 cron job)
+- ✅ Logs tersimpan permanen di tab **Actions** GitHub
+- ✅ Bisa di-trigger manual via `workflow_dispatch` untuk testing cepat
+
+---
+
+## 3. Cara Kerja
 
 ```
 ┌─────────────────────────────────┐
-│  SCHEDULER (siapa yang telpon)  │  ← Konfigurable, lihat §6
-│  Vercel Cron (default)          │
+│  GitHub Actions                 │
+│  .github/workflows/             │
+│  keep-alive.yml                 │
+│  (cron: 0 0 * * 1-5)           │
 └──────────────┬──────────────────┘
-               │  GET /api/keepalive
+               │  curl + apikey header
                ▼
 ┌─────────────────────────────────┐
-│  ENDPOINT (yang kerja)          │  ← TIDAK PERNAH DIUBAH
-│  app/api/keepalive/route.ts     │
-│  ↓ SELECT id LIMIT 1            │
-│  business_profiles table        │
+│  Supabase REST API              │
+│  GET /rest/v1/business_profiles │
+│       ?select=id&limit=1        │
+└──────────────┬──────────────────┘
+               │  Activity tercatat
+               ▼
+┌─────────────────────────────────┐
+│  Project Supabase Free          │
+│  Timer pause di-reset           │
+│  → tetap aktif ✅               │
 └─────────────────────────────────┘
 ```
 
 **Alur singkat:**
 
-1. Scheduler memanggil `GET https://<app>.vercel.app/api/keepalive` secara berkala.
-2. Endpoint membuat client Supabase server-side menggunakan `SUPABASE_SERVICE_ROLE_KEY`.
-3. Endpoint menjalankan query paling minimal: `SELECT id FROM business_profiles LIMIT 1`.
-4. Activity ini tercatat di Supabase dan me-reset timer pause.
+1. Setiap Senin–Jumat pukul 00:00 UTC, GitHub Actions menjalankan workflow.
+2. Workflow mengirim `GET` ke `https://<project>.supabase.co/rest/v1/business_profiles?select=id&limit=1` dengan header `apikey` dan `Authorization: Bearer`.
+3. Supabase mencatat aktivitas query ini dan me-reset timer pause otomatis.
+4. Workflow exit dengan status `success` atau `failure` (terlihat jelas di tab Actions).
 
 ---
 
-## 3. File yang Terlibat
+## 4. File yang Terlibat
 
 | File | Fungsi |
 |------|--------|
-| `app/api/keepalive/route.ts` | Route handler `GET /api/keepalive`. Hanya query + balas JSON. |
-| `vercel.json` | Konfigurasi Vercel Cron yang menjadwalkan pemanggilan endpoint. |
+| `.github/workflows/keep-alive.yml` | Workflow GitHub Actions. Menjalankan `curl` ke Supabase REST API. |
+| `vercel.json` | Dikosongkan (`{}`) — Vercel Cron dinonaktifkan. |
 
-**Tidak ada file lain yang diubah.** Supabase client, business logic, schema, dan konfigurasi lain tetap utuh.
+**Catatan historis:** Versi sebelumnya menggunakan `app/api/keepalive/route.ts` (endpoint Next.js). File ini sudah dihapus karena tidak diperlukan lagi — workflow GitHub Actions memanggil Supabase REST API langsung tanpa perantara.
 
 ---
 
-## 4. Detail Endpoint
+## 5. Detail Workflow
 
-**Lokasi:** `app/api/keepalive/route.ts`
+**Lokasi:** `.github/workflows/keep-alive.yml`
 
-**Method:** `GET`
+**Trigger:**
 
-**Konfigurasi Next.js:**
-
-```ts
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+```yaml
+on:
+  schedule:
+    - cron: '0 0 * * 1-5'   # Otomatis: Senin–Jumat 00:00 UTC
+  workflow_dispatch:          # Manual: klik "Run workflow" di tab Actions
 ```
 
-→ Memastikan response tidak pernah di-cache sehingga setiap hit benar-benar menyentuh database.
+**Perintah yang dijalankan:**
 
-**Query yang dijalankan:**
+```bash
+curl -sS -G \
+  --data-urlencode "select=id" \
+  --data-urlencode "limit=1" \
+  -H "apikey: ${SUPABASE_ANON_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+  "${SUPABASE_URL}/rest/v1/business_profiles"
+```
 
-```sql
-SELECT id FROM business_profiles LIMIT 1
+**Query Supabase yang dihasilkan:**
+
+```
+GET /rest/v1/business_profiles?select=id&limit=1
 ```
 
 **Mengapa tabel `business_profiles`?**
 
-- Pasti selalu ada di setiap deployment (dibuat saat bootstrap user baru — lihat `lib/supabase/bootstrap.ts`).
-- Paling ringan: Primary key berupa `TEXT` sederhana.
-- Tidak ada filter `company_id` sehingga tidak bergantung pada data user tertentu.
+- Pasti selalu ada di setiap deployment (dibuat saat bootstrap user baru).
+- Paling ringan: Primary key `TEXT` sederhana.
+- Tidak butuh autentikasi user tertentu — Anon Key sudah cukup.
 
 **Response sukses (HTTP 200):**
 
 ```json
-{ "status": "ok", "timestamp": "2026-07-04T08:00:00.000Z" }
+[{ "id": "company_xxx" }]   # atau [] jika database kosong (tetap 200)
 ```
-
-**Response error (HTTP 500):**
-
-```json
-{ "status": "error", "timestamp": "2026-07-04T08:00:00.000Z" }
-```
-
-Error juga dicatat ke console dengan prefix `[keepalive]` untuk memudahkan debugging di Vercel Logs.
 
 ---
 
-## 5. Konfigurasi Cron
+## 6. Konfigurasi Schedule
 
-**File:** `vercel.json`
+Penjelasan cron expression `0 0 * * 1-5`:
 
-```json
-{
-  "crons": [
-    {
-      "path": "/api/keepalive",
-      "schedule": "0 0 * * 1-5"
-    }
-  ]
-}
-```
-
-**Penjelasan schedule `0 0 * * 1-5`:**
-
-| Bagian | Arti |
-|--------|------|
-| `0` (menit) | Menit ke-0 |
-| `0` (jam) | Jam ke-0 (00:00) |
-| `*` (hari) | Setiap hari |
-| `*` (bulan) | Setiap bulan |
-| `1-5` (hari dalam minggu) | Senin–Jumat |
+| Bagian | Nilai | Arti |
+|--------|-------|------|
+| Menit | `0` | Menit ke-0 |
+| Jam | `0` | Jam ke-0 (00:00 UTC) |
+| Hari | `*` | Setiap hari dalam bulan |
+| Bulan | `*` | Setiap bulan |
+| Hari minggu | `1-5` | Senin (1) sampai Jumat (5) |
 
 → Eksekusi setiap **hari kerja pukul 00:00 UTC** (5 kali seminggu).
 
 **Mengapa weekday saja?**
 
 - Threshold pause Supabase = 7 hari. Dengan 5 hit/minggu, jarak terjauh antar hit (Jumat 00:00 → Senin 00:00) sekitar 2,5 hari — masih sangat aman.
-- Lebih hemat quota Vercel Cron (Free: 2 cron jobs/hari).
-- Menyisakan 1 slot quota cron jika nanti dibutuhkan job lain.
+- Hemat resource GitHub Actions.
+- Tidak ada ketergantungan pada Vercel Cron quota.
 
 ---
 
-## 6. Mengganti Scheduler
+## 7. Setup GitHub Secrets (Satu Kali)
 
-Karena endpoint `GET /api/keepalive` adalah HTTP biasa, ia **tidak terikat pada satu scheduler**. Bagian ini menjelaskan cara pindah scheduler jika diperlukan.
+Workflow ini butuh **2 secrets** yang harus Anda tambahkan secara manual di GitHub web.
 
-### Prinsip Perubahan
+### Langkah-langkah:
 
-| Komponen | Berubah saat pindah scheduler? |
-|----------|-------------------------------|
-| `app/api/keepalive/route.ts` | ❌ **Tidak pernah** |
-| `vercel.json` | ✅ Ya (isi/dikosongkan sesuai scheduler baru) |
-| File konfig scheduler baru | ✅ Ya (ditambah) |
+1. Buka `github.com/ahaditastudio/umkm-supabase` → tab **Settings**
+2. Menu kiri: **Secrets and variables** → **Actions**
+3. Klik **New repository secret**
+
+### Tambahkan 2 secrets berikut:
+
+| Name | Value |
+|------|-------|
+| `SUPABASE_URL` | Salin dari `.env.local`: `NEXT_PUBLIC_SUPABASE_URL` (misal `https://xxxxx.supabase.co`) |
+| `SUPABASE_ANON_KEY` | Salin dari `.env.local`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (string panjang dimulai `eyJ...`) |
+
+> ⚠️ **Catatan keamanan:** Anon Key **secara desain memang public** (sudah dipakai di browser client app). Menyimpannya di GitHub Secrets hanya formalitas agar tidak hardcode di file workflow — namun tidak menambah risiko keamanan.
 
 ---
 
-### Opsi A: Tetap Vercel Cron (default saat ini)
+## 8. Cara Verifikasi
 
-Tidak perlu melakukan apa-apa. Sudah berjalan.
+### 8.1 Trigger manual workflow (test cepat)
 
----
+1. Buka tab **Actions** di GitHub repo
+2. Pilih workflow **"Supabase Keep-Alive"** di sidebar kiri
+3. Klik tombol **Run workflow** (kanan atas) → **Run workflow** (dropdown hijau)
+4. Tunggu beberapa detik, klik run yang baru muncul untuk melihat log
 
-### Opsi B: Pindah ke GitHub Actions
+**Expected output di log:**
 
-**1. Kosongkan `vercel.json`:**
-
-```json
-{}
+```
+Pinging https://xxxxx.supabase.co ...
+HTTP Status: 200
+Response body: [{"id":"company_xxx"}]
+✅ Keep-alive SUCCESS — Supabase project aktif
 ```
 
-**2. Buat `.github/workflows/keepalive.yml`:**
+### 8.2 Pantau eksekusi terjadwal
 
-```yaml
-name: Supabase Keep-Alive
+- Tab **Actions** → klik **Supabase Keep-Alive** di sidebar
+- Anda akan melihat daftar run otomatis (Senin–Jumat 00:00 UTC)
+- Badge hijau ✅ = sukses, merah ❌ = gagal
 
-on:
-  schedule:
-    - cron: '0 0 * * 1-5'   # Senin-Jumat 00:00 UTC
-  workflow_dispatch:          # Trigger manual dari tab Actions
+### 8.3 Verifikasi di Supabase Dashboard
 
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping keep-alive endpoint
-        run: curl -f https://<your-app>.vercel.app/api/keepalive
-```
-
-> Ganti `<your-app>` dengan domain Vercel Anda (atau hardcode via GitHub Secret untuk keamanan ekstra).
+1. Buka **Supabase Dashboard → Project → Logs → API Logs** (atau **Database → Query Performance**)
+2. Setelah workflow berjalan, akan terlihat query `GET /rest/v1/business_profiles?select=id&limit=1`
+3. Aktivitas ini me-reset timer pause otomatis
 
 ---
 
-### Opsi C: Pindah ke cron-job.org (layanan gratis)
-
-**1. Kosongkan `vercel.json`:**
-
-```json
-{}
-```
-
-**2. Setup via web di [cron-job.org](https://cron-job.org):**
-
-| Field | Isi |
-|-------|-----|
-| URL | `https://<your-app>.vercel.app/api/keepalive` |
-| Schedule | `0 0 * * 1-5` |
-| Request method | GET |
-
-Tidak ada file baru di repo — semua konfigurasi ada di dashboard cron-job.org.
-
----
-
-### Opsi D: Multi-layer (paling aman, "belt and suspenders")
-
-Untuk redundansi agar keep-alive tetap berjalan meski salah satu scheduler mati.
-
-**1. `vercel.json` tetap seperti adanya.**
-
-**2. Tambah `.github/workflows/keepalive.yml`:**
-
-```yaml
-name: Supabase Keep-Alive (Backup)
-on:
-  schedule:
-    - cron: '0 12 * * 3'   # Rabu 12:00 UTC (slot kosong)
-  workflow_dispatch:
-
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: curl -f https://<your-app>.vercel.app/api/keepalive
-```
-
-Hasilnya: Vercel Cron hit di Senin–Jumat 00:00, GitHub Actions menambah hit di Rabu 12:00. Total **6 hit/minggu**.
-
----
-
-## 7. Cara Verifikasi Setelah Deploy
-
-### 7.1 Test manual endpoint
-
-```bash
-curl https://<your-app>.vercel.app/api/keepalive
-```
-
-**Expected output:**
-
-```json
-{"status":"ok","timestamp":"2026-07-04T08:00:00.000Z"}
-```
-
-### 7.2 Pantau Vercel Cron
-
-Buka **Vercel Dashboard → Project → Cron Jobs**. Entry `/api/keepalive` akan muncul dengan schedule `0 0 * * 1-5`.
-
-### 7.3 Pantau log eksekusi
-
-Buka **Vercel Dashboard → Logs → Function Logs**, filter `/api/keepalive`. Akan terlihat log `[keepalive]` setiap kali cron berjalan.
-
-### 7.4 Verifikasi di Supabase
-
-1. Buka **Supabase Dashboard → Project → Database → Query Performance** atau **Logs**.
-2. Setelah cron berjalan, akan terlihat query `SELECT id FROM business_profiles LIMIT 1`.
-3. Aktivitas query ini me-reset timer pause otomatis.
-
----
-
-## 8. Limitasi & Catatan
+## 9. Limitasi & Catatan
 
 | Aspek | Catatan |
 |-------|---------|
-| **Vercel Cron Free tier** | Maks 2 cron jobs/hari. Saat ini pakai 1. |
-| **Supabase Free tier pause** | Threshold 7 hari. Schedule 5x/minggu memberi buffer ~4,5 hari. |
-| **Project yang sudah paused** | Keep-alive **tidak bisa** meng-unpause otomatis — harus manual via dashboard dulu. |
+| **GitHub Actions Free** | 2000 menit/bulan. 1 cron job × ~5 detik eksekusi × ~22 hari kerja = ~2 menit/bulan. Aman. |
+| **Project yang sudah paused** | Keep-alive **tidak bisa** meng-unpause otomatis — harus manual via dashboard dulu, baru cron mulai bekerja lagi. |
 | **Internal cron Supabase (pg_cron)** | Tidak dipakai karena tidak efektif: jika project sudah paused, cron di dalam project juga ikut berhenti. Keep-alive **harus** berasal dari luar. |
+| **Workflow failure** | Jika GH Actions gagal (misal secrets salah), Supabase tidak dapat ping hari itu. Tapi dengan 5x/minggu, masih ada banyak kesempatan recovery. |
 
 ---
 
-## 9. Ringkasan Perubahan
+## 10. Migrasi ke Scheduler Lain
+
+Jika di masa depan ingin pindah scheduler (misal karena GitHub Actions policy berubah), modifikasi hanya workflow file — tidak ada kode aplikasi yang perlu diubah.
+
+### Opsi A: Tetap GitHub Actions (default saat ini)
+
+Tidak perlu melakukan apa-apa. Sudah berjalan.
+
+### Opsi B: Pindah ke cron-job.org (layanan gratis, tanpa GitHub)
+
+1. **Hapus** `.github/workflows/keep-alive.yml`
+2. Setup via web di [cron-job.org](https://cron-job.org):
+   - URL: `https://<your-project>.supabase.co/rest/v1/business_profiles?select=id&limit=1`
+   - Header 1: `apikey: <SUPABASE_ANON_KEY>`
+   - Header 2: `Authorization: Bearer <SUPABASE_ANON_KEY>`
+   - Schedule: `0 0 * * 1-5`
+
+### Opsi C: Pindah ke UptimeRobot (monitoring + ping gratis)
+
+1. **Hapus** `.github/workflows/keep-alive.yml`
+2. Setup monitor di [UptimeRobot](https://uptimerobot.com):
+   - Monitor Type: HTTP(s)
+   - URL: sama seperti di atas
+   - Monitoring Interval: minimal 5 menit (free plan)
+
+### Opsi D: Multi-layer (paling aman)
+
+Pertahankan GH Actions **dan** tambah backup scheduler lain. Contoh:
+
+1. `.github/workflows/keep-alive.yml` tetap (Senin–Jumat 00:00 UTC)
+2. Tambah cron-job.org dengan schedule berbeda (misal Rabu 12:00 UTC)
+
+---
+
+## 11. Ringkasan Perubahan (Riwayat)
 
 | File | Aksi | Tujuan |
 |------|------|--------|
-| `app/api/keepalive/route.ts` | **Buat baru** | Endpoint ping ringan. |
-| `vercel.json` | **Buat baru** | Konfigurasi Vercel Cron weekday 00:00 UTC. |
-| `docs/keep-alive.md` | **Buat baru** | Dokumentasi ini. |
+| `.github/workflows/keep-alive.yml` | **Buat baru** | Workflow GH Actions yang ping Supabase REST API. |
+| `vercel.json` | **Dikosongkan** (`{}`) | Matikan Vercel Cron (pindah ke GH Actions). |
+| `docs/keep-alive.md` | **Update** | Dokumentasi arsitektur baru. |
+| ~~`app/api/keepalive/route.ts`~~ | ~~Dihapus~~ | Tidak diperlukan lagi (GH Actions panggil Supabase langsung). |
+
+---
+
+## 12. Troubleshooting
+
+### Workflow gagal: "supabase_url not set"
+
+→ **Solusi:** Tambahkan secret `SUPABASE_URL` di Settings → Secrets (lihat §7).
+
+### Workflow gagal: HTTP 401
+
+→ **Solusi:** Secret `SUPABASE_ANON_KEY` salah atau tidak ada. Cek ulang di Supabase Dashboard → Settings → API.
+
+### Workflow gagal: HTTP 404
+
+→ **Solusi:** Project ID di `SUPABASE_URL` salah. Pastikan URL lengkap seperti `https://abcdefghijk.supabase.co` (bukan custom domain).
+
+### Workflow sukses tapi Supabase tetap paused
+
+→ **Solusi:** Kemungkinan project sudah paused **sebelum** workflow pertama berjalan. Unpause manual dulu via dashboard, lalu pastikan workflow berikutnya sukses (lihat §8.1).
+
+### Workflow tidak berjalan otomatis
+
+→ **Solusi:**
+
+- Cek tab **Actions** → pastikan workflow file valid (tidak ada error YAML).
+- Cron GitHub Actions bisa delay 5–30 menit dari jadwal.
+- Pastikan repo tidak di-archive / disabled Actions.
