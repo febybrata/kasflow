@@ -874,7 +874,7 @@ export async function closeAccountingPeriod(
   const accounts = (accountsData || []).map(snakeToCamel<Account>);
   const taxSettings = taxSettingsData ? snakeToCamel<TaxSettings>(taxSettingsData) : undefined;
 
-  const closingEntries = generateClosingEntries(companyId, startDate, endDate, journals, accounts, taxSettings);
+  const closingEntries = generateClosingEntries(companyId, startDate, endDate, journals, accounts);
 
   // Save closing entries to database
   for (const entry of closingEntries) {

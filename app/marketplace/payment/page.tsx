@@ -27,6 +27,7 @@ import {
   Settings,
   Store,
 } from "lucide-react";
+import type { Category, CashAccount } from "@/lib/types";
 
 type Shop = {
   id: string;
@@ -436,7 +437,7 @@ export default function MarketplacePaymentPage() {
           className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
         >
           <option value="all">Semua Toko ({shops.length})</option>
-          {shops.map((shop) => (
+          {shops.map((shop: Shop) => (
             <option key={shop.id} value={shop.id}>
               {shop.display_name || shop.shop_name}
             </option>
@@ -849,7 +850,7 @@ export default function MarketplacePaymentPage() {
                     <select value={mapping.revenueCategoryId} onChange={(e) => setMapping({ ...mapping, revenueCategoryId: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg bg-background text-sm">
                       <option value="">Pilih kategori income</option>
-                      {categories.filter((c) => c.type === "income").map((c) => (
+                      {categories.filter((c: Category) => c.type === "income").map((c: Category) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
@@ -860,7 +861,7 @@ export default function MarketplacePaymentPage() {
                     <select value={mapping.expenseCategoryId} onChange={(e) => setMapping({ ...mapping, expenseCategoryId: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg bg-background text-sm">
                       <option value="">Pilih kategori expense</option>
-                      {categories.filter((c) => c.type === "expense").map((c) => (
+                      {categories.filter((c: Category) => c.type === "expense").map((c: Category) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
@@ -871,7 +872,7 @@ export default function MarketplacePaymentPage() {
                     <select value={mapping.cashAccountId} onChange={(e) => setMapping({ ...mapping, cashAccountId: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg bg-background text-sm">
                       <option value="">Pilih akun kas atau bank</option>
-                      {cashAccounts.map((ca) => (
+                      {cashAccounts.map((ca: CashAccount) => (
                         <option key={ca.id} value={ca.id}>{ca.name}</option>
                       ))}
                     </select>

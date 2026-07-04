@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTransactionsPaginated, type TransactionCursor } from '@/lib/supabase/company-service';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, TransactionType } from '@/lib/types';
 
 export function usePaginatedTransactions(companyId: string, filters: {
   search?: string;
-  type?: string;
+  type?: TransactionType;
   accountId?: string;
   year?: number;
 }) {

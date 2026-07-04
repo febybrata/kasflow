@@ -39,7 +39,7 @@ export const calculateProfitLossMemo = memoize<
     Account[],
     string | undefined,
     string | undefined,
-    { id: string; categoryId: string; type: string }[] | undefined,
+    { id: string; categoryId?: string; type: string }[] | undefined,
     TaxSettings | undefined
   ],
   ProfitLossReport

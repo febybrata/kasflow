@@ -252,7 +252,7 @@ export default function MarketplaceOrdersPage() {
         <select value={selectedShop} onChange={(e) => setSelectedShop(e.target.value)}
           className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
           <option value="all">Semua Toko ({shops.length})</option>
-          {shops.map((shop) => (
+          {shops.map((shop: Shop) => (
             <option key={shop.id} value={shop.id}>{shop.display_name || shop.shop_name}</option>
           ))}
         </select>

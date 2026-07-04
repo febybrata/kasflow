@@ -6,10 +6,24 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
 import { runSync, createSyncLogFromResult } from "@/lib/marketplace/tiktok/sync-engine";
+import type { MarketplaceConnection } from "@/lib/types";
 import { refreshAccessToken, shouldRefreshToken } from "@/lib/marketplace/tiktok/auth";
 import { uid } from "@/lib/utils";
+
+// Top-level snake_case → camelCase transform for DB rows that are passed to
+// helpers expecting camelCase domain types (MarketplaceConnection, Category, etc.).
+// Purely structural; values are not modified.
+function snakeToCamel<T = Record<string, unknown>>(obj: Record<string, unknown>): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    result[camelKey] = value;
+  }
+  return result as T;
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -18,10 +32,19 @@ const tiktokAppSecret = process.env.TIKTOK_APP_SECRET!;
 
 export async function POST(request: NextRequest) {
   let syncLogId: string | null = null;
-  let supabase: ReturnType<typeof createClient>;
+  // Initialize supabase before try so the catch block can safely use it
+  // even when an error occurs before the original assignment point
+  // (e.g. malformed JSON in the request body).
+  const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { connectionId, companyId, mode = "incremental", startDate, endDate } = await request.json();
+    const { connectionId, companyId, mode = "incremental", startDate, endDate } = (await request.json()) as {
+      connectionId?: string;
+      companyId?: string;
+      mode?: "full" | "incremental" | "backfill";
+      startDate?: string;
+      endDate?: string;
+    };
 
     if (!connectionId || !companyId) {
       return NextResponse.json(
@@ -31,8 +54,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Sync] Starting ${mode} sync for connection ${connectionId}`);
-
-    supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get connection
     const { data: connection, error: connError } = await supabase
@@ -51,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if token needs refresh (proactive refresh 1 day before expiry)
-    if (shouldRefreshToken(connection.token_expires_at)) {
+    if (shouldRefreshToken(connection.token_expires_at ?? undefined)) {
       console.log("[Sync] Token needs refresh, refreshing...");
       try {
         const tokenData = await refreshAccessToken(
@@ -60,7 +81,7 @@ export async function POST(request: NextRequest) {
             appSecret: tiktokAppSecret,
             redirectUri: process.env.NEXT_PUBLIC_APP_URL + "/api/integrations/tiktok/callback",
           },
-          connection.refresh_token
+          connection.refresh_token as string
         );
 
         // Update connection with new tokens
@@ -171,10 +192,10 @@ export async function POST(request: NextRequest) {
     };
 
     const syncResult = await runSync({
-      connection: connectionCamelCase,
-      mappings: mappings || [],
-      categories: categories || [],
-      cashAccounts: cashAccounts || [],
+      connection: connectionCamelCase as unknown as MarketplaceConnection,
+      mappings: (mappings || []).map((m) => snakeToCamel(m)),
+      categories: (categories || []).map((c) => snakeToCamel(c)),
+      cashAccounts: (cashAccounts || []).map((ca) => snakeToCamel(ca)),
       companyId,
       appKey: tiktokAppKey,
       appSecret: tiktokAppSecret,
@@ -340,7 +361,7 @@ export async function POST(request: NextRequest) {
         shipping_provider: order.shippingProvider,
         buyer_user_id: order.buyerUserId,
         updated_at: new Date().toISOString(),
-      }));
+      })) as Database["public"]["Tables"]["marketplace_orders"]["Insert"][];
 
       console.log(`[Sync] Upserting ${ordersToUpsert.length} orders in batches...`);
       const BATCH_SIZE = 50;

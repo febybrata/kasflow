@@ -111,9 +111,13 @@ export type TikTokApiResponse<T> = {
 
 /**
  * Paginated response structure
+ *
+ * NOTE: index signature is widened to `T[] | string | number | undefined`
+ * because some keys (next_page_token, total_count) are scalars, not arrays.
+ * The runtime shape is unchanged.
  */
 export type TikTokPaginatedResponse<T> = {
-  [key: string]: T[]; // statements, transactions, orders
+  [key: string]: T[] | string | number | undefined;
   next_page_token?: string;
   total_count?: number;
 };

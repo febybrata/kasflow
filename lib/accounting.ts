@@ -406,7 +406,7 @@ export function calculateProfitLoss(
   accounts: Account[],
   from?: string,
   to?: string,
-  transactions?: { id: string; categoryId: string; type: string }[],
+  transactions?: { id: string; categoryId?: string; type: string }[],
   taxSettings?: TaxSettings,
 ): ProfitLossReport {
   // By-account breakdowns, grouped by subType
@@ -1019,6 +1019,7 @@ const seedDescriptions: Record<TransactionType, string[]> = {
   income: ["Penjualan produk", "Pembayaran invoice", "Order marketplace", "Pendapatan jasa"],
   expense: ["Belanja operasional", "Ongkos kirim", "Iklan digital", "Biaya internet", "ATK dan administrasi"],
   transfer: ["Setor kas ke bank", "Tarik tunai operasional", "Pindah saldo antar bank"],
+  capital: ["Modal awal pemilik", "Setoran modal tambahan", "Tarik pemilik (prive)"],
 };
 
 function pick<T>(items: T[], index: number) {

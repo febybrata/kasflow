@@ -274,7 +274,7 @@ export default function IntegrationsPage() {
                       <div className="flex items-center gap-2">
                         <Store className="h-4 w-4 text-muted-foreground" />
                         <h3 className="font-semibold text-sm">{getShopLabel(conn)}</h3>
-                        <Badge variant={conn.status === "active" ? "default" : "secondary"}>{conn.status}</Badge>
+                        <Badge tone={conn.status === "active" ? "default" : "muted"}>{conn.status}</Badge>
                       </div>
                       {conn.display_name && conn.shop_name !== conn.display_name && (
                         <p className="text-[11px] text-muted-foreground">Asli: {conn.shop_name}</p>
