@@ -116,27 +116,30 @@ export default function IntegrationsPage() {
     }
   }, [searchParams, companyId]);
 
-  const handleConnect = async () => {
+  const handleConnect = async (platform: "tiktok" | "shopee") => {
     if (!appUser?.uid) return;
     try {
-      const response = await fetch("/api/integrations/tiktok/auth", {
+      const response = await fetch(`/api/integrations/${platform}/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyId }),
       });
       const data = await response.json();
-      if (data.authUrl) {
+      if (response.ok && data.authUrl) {
         window.location.href = data.authUrl;
+      } else {
+        toast.error(`Gagal menghubungkan ${platform === "tiktok" ? "TikTok" : "Shopee"}: ${data.error || "Terjadi kesalahan"}`);
       }
     } catch (error) {
-      console.error("Failed to initiate OAuth:", error);
+      console.error(`Failed to initiate ${platform} OAuth:`, error);
+      toast.error(`Gagal menghubungkan ${platform === "tiktok" ? "TikTok" : "Shopee"}. Silakan coba lagi.`);
     }
   };
 
-  const handleSync = async (connectionId: string) => {
+  const handleSync = async (connectionId: string, platform: string) => {
     setSyncing(connectionId);
     try {
-      const response = await fetch("/api/integrations/tiktok/sync", {
+      const response = await fetch(`/api/integrations/${platform}/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, companyId, mode: "incremental", startDate: syncStartDate, endDate: syncEndDate }),
@@ -212,6 +215,9 @@ export default function IntegrationsPage() {
     );
   }
 
+  const tiktokConnections = connections.filter((c) => c.platform === "tiktok_shop");
+  const shopeeConnections = connections.filter((c) => c.platform === "shopee");
+
   return (
     <div className="space-y-6">
       {/* Success Message */}
@@ -219,8 +225,8 @@ export default function IntegrationsPage() {
         <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-500" />
           <div className="flex-1">
-            <p className="font-medium text-green-500">TikTok Shop berhasil terhubung!</p>
-            <p className="text-sm text-muted-foreground">Anda sekarang dapat menyinkronkan data transaksi dari TikTok Shop.</p>
+            <p className="font-medium text-green-500">Marketplace berhasil terhubung!</p>
+            <p className="text-sm text-muted-foreground">Anda sekarang dapat menyinkronkan data transaksi dari marketplace.</p>
           </div>
         </div>
       )}
@@ -242,29 +248,29 @@ export default function IntegrationsPage() {
                 TikTok Shop
               </CardTitle>
               <CardDescription className="text-xs">
-                {connections.length} toko terhubung
+                {tiktokConnections.length} toko terhubung
               </CardDescription>
             </div>
-            <Button onClick={handleConnect} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-9">
+            <Button onClick={() => handleConnect("tiktok")} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-9">
               <Plus className="h-4 w-4 mr-1.5" />
               Connect Toko Baru
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {connections.length === 0 ? (
+          {tiktokConnections.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed rounded-lg">
               <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="font-semibold mb-2">Belum Ada TikTok Shop</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Hubungkan toko TikTok Shop pertama kamu untuk mulai sync data.
               </p>
-              <Button onClick={handleConnect}>
+              <Button onClick={() => handleConnect("tiktok")}>
                 <Plus className="h-4 w-4 mr-2" />Connect TikTok Shop
               </Button>
             </div>
           ) : (
-            connections.map((conn) => {
+            tiktokConnections.map((conn) => {
               const tokenStatus = getTokenStatus(conn.token_expires_at);
               return (
                 <div key={conn.id} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
@@ -402,7 +408,210 @@ export default function IntegrationsPage() {
                     )}
 
                     <Button variant="outline" size="sm"
-                      onClick={() => handleSync(conn.id)}
+                      onClick={() => handleSync(conn.id, "tiktok")}
+                      disabled={syncing === conn.id || conn.status !== "active"}
+                      className="text-xs h-8 ml-auto">
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing === conn.id ? "animate-spin" : ""}`} />
+                      {syncing === conn.id ? "Syncing..." : "Sync"}
+                    </Button>
+                  </div>
+
+                  {/* Info Row */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Clock className="h-3 w-3" />Last sync: {formatLastSync(conn.last_sync_at)}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm"
+                        onClick={() => router.push("/marketplace/payment")}
+                        className="text-xs h-7">
+                        <CreditCard className="h-3.5 w-3.5 mr-1" />Payment
+                      </Button>
+                      <Button variant="ghost" size="sm"
+                        onClick={() => router.push("/marketplace/orders")}
+                        className="text-xs h-7">
+                        <Package className="h-3.5 w-3.5 mr-1" />Orders
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Shopee Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShoppingBag className="h-5 w-5" />
+                Shopee
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {shopeeConnections.length} toko terhubung
+              </CardDescription>
+            </div>
+            <Button onClick={() => handleConnect("shopee")} className="bg-orange-600 hover:bg-orange-500 text-white text-xs h-9">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Connect Toko Baru
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {shopeeConnections.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed rounded-lg">
+              <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="font-semibold mb-2">Belum Ada Shopee Shop</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Hubungkan toko Shopee pertama kamu untuk mulai sync data.
+              </p>
+              <Button onClick={() => handleConnect("shopee")} className="bg-orange-600 hover:bg-orange-500 text-white">
+                <Plus className="h-4 w-4 mr-2" />Connect Shopee Shop
+              </Button>
+            </div>
+          ) : (
+            shopeeConnections.map((conn) => {
+              const tokenStatus = getTokenStatus(conn.token_expires_at);
+              return (
+                <div key={conn.id} className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                  {/* Shop Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Store className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-semibold text-sm">{getShopLabel(conn)}</h3>
+                        <Badge tone={conn.status === "active" ? "default" : "muted"}>{conn.status}</Badge>
+                      </div>
+                      {conn.display_name && conn.shop_name !== conn.display_name && (
+                        <p className="text-[11px] text-muted-foreground">Asli: {conn.shop_name}</p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">Shop ID: {conn.shop_cipher}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {tokenStatus.status === "expired" ? (
+                        <Badge tone="red"><AlertCircle className="h-3 w-3 mr-1" />Token Expired</Badge>
+                      ) : tokenStatus.status === "warning" ? (
+                        <Badge tone="yellow"><AlertCircle className="h-3 w-3 mr-1" />{tokenStatus.label}</Badge>
+                      ) : (
+                        <Badge tone="green"><CheckCircle2 className="h-3 w-3 mr-1" />{tokenStatus.label}</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sync Controls */}
+                  <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    <select
+                      value={syncDatePreset}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSyncDatePreset(value);
+
+                        if (value === "custom") {
+                          setIsPopoverOpen(true);
+                          return;
+                        }
+
+                        const today = new Date();
+                        let startDate: Date;
+                        let endDate = today;
+
+                        switch (value) {
+                          case "today":
+                            startDate = today;
+                            break;
+                          case "7days":
+                            startDate = new Date(today);
+                            startDate.setDate(today.getDate() - 7);
+                            break;
+                          case "30days":
+                            startDate = new Date(today);
+                            startDate.setDate(today.getDate() - 30);
+                            break;
+                          case "this_month":
+                            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                            break;
+                          case "last_month":
+                            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                            break;
+                          case "month":
+                            const [y, m] = selectedMonth.split("-").map(Number);
+                            startDate = new Date(y, m - 1, 1);
+                            endDate = new Date(y, m, 0);
+                            break;
+                          default:
+                            startDate = new Date(today);
+                            startDate.setDate(today.getDate() - 30);
+                        }
+
+                        setSyncStartDate(toLocalDateStr(startDate));
+                        setSyncEndDate(toLocalDateStr(endDate));
+                      }}
+                      className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-2 text-xs outline-none focus:border-primary"
+                    >
+                      <option value="today">Hari Ini</option>
+                      <option value="7days">7 Hari Terakhir</option>
+                      <option value="30days">30 Hari Terakhir</option>
+                      <option value="this_month">Bulan Ini</option>
+                      <option value="last_month">Bulan Lalu</option>
+                      <option value="month">Pilih Bulan</option>
+                      <option value="custom">Rentang Kustom</option>
+                    </select>
+
+                    {/* Opsi Pilih Bulan */}
+                    {syncDatePreset === "month" && (
+                      <input
+                        type="month"
+                        value={selectedMonth}
+                        onChange={(e) => handleMonthChange(e.target.value)}
+                        className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-2 text-xs outline-none focus:border-primary"
+                      />
+                    )}
+
+                    {/* Opsi Rentang Kustom (Popover) */}
+                    {syncDatePreset === "custom" && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setIsPopoverOpen(!isPopoverOpen)}
+                          className="h-8 flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-3 text-xs outline-none hover:bg-muted/50 transition-colors"
+                        >
+                          📅 {formatDate(syncStartDate)} - {formatDate(syncEndDate)}
+                        </button>
+                        {isPopoverOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsPopoverOpen(false)} />
+                            <div className="absolute z-50 left-0 mt-1 p-3 bg-card border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg flex flex-col gap-2 min-w-[220px]">
+                              <div className="space-y-1">
+                                <label className="text-[10px] text-muted-foreground block font-medium">Dari Tanggal</label>
+                                <input
+                                  type="date"
+                                  value={syncStartDate}
+                                  onChange={(e) => setSyncStartDate(e.target.value)}
+                                  className="h-8 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-background px-2 text-xs outline-none focus:border-primary"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] text-muted-foreground block font-medium">Sampai Tanggal</label>
+                                <input
+                                  type="date"
+                                  value={syncEndDate}
+                                  onChange={(e) => setSyncEndDate(e.target.value)}
+                                  className="h-8 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-background px-2 text-xs outline-none focus:border-primary"
+                                />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    <Button variant="outline" size="sm"
+                      onClick={() => handleSync(conn.id, "shopee")}
                       disabled={syncing === conn.id || conn.status !== "active"}
                       className="text-xs h-8 ml-auto">
                       <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing === conn.id ? "animate-spin" : ""}`} />
@@ -437,17 +646,6 @@ export default function IntegrationsPage() {
 
       {/* Future Platforms */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="opacity-60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShoppingBag className="h-5 w-5" />Shopee
-            </CardTitle>
-            <CardDescription className="text-xs">Coming soon</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button disabled variant="outline" className="text-xs">Coming Soon</Button>
-          </CardContent>
-        </Card>
         <Card className="opacity-60">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

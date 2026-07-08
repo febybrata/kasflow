@@ -1,0 +1,429 @@
+// ============================================================
+// TRIGGER MANUAL SYNC FOR SHOPEE
+// ============================================================
+// Orchestrates sync: virtual statements, orders
+// ============================================================
+
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+import { runSync } from "@/lib/marketplace/shopee/sync-engine";
+import { refreshAccessToken, shouldRefreshToken } from "@/lib/marketplace/shopee/auth";
+import { uid } from "@/lib/utils";
+
+// Snake case to camel case converter
+function snakeToCamel<T = Record<string, unknown>>(obj: Record<string, unknown>): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    result[camelKey] = value;
+  }
+  return result as T;
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const shopeePartnerId = Number(process.env.SHOPEE_PARTNER_ID!);
+const shopeePartnerKey = process.env.SHOPEE_PARTNER_KEY!;
+
+export async function POST(request: NextRequest) {
+  let syncLogId: string | null = null;
+  const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey);
+
+  try {
+    const { connectionId, companyId, mode = "incremental", startDate, endDate } = (await request.json()) as {
+      connectionId?: string;
+      companyId?: string;
+      mode?: "full" | "incremental" | "backfill";
+      startDate?: string;
+      endDate?: string;
+    };
+
+    if (!connectionId || !companyId) {
+      return NextResponse.json(
+        { error: "connectionId and companyId are required" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[Shopee Sync] Starting ${mode} sync for connection ${connectionId}`);
+
+    // Get connection
+    const { data: connection, error: connError } = await supabase
+      .from("marketplace_connections")
+      .select("*")
+      .eq("id", connectionId)
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .single();
+
+    if (connError || !connection) {
+      return NextResponse.json(
+        { error: "Connection not found or inactive" },
+        { status: 404 }
+      );
+    }
+
+    const shopId = Number(connection.shop_id);
+    if (isNaN(shopId)) {
+      return NextResponse.json(
+        { error: "Invalid shop ID in connection" },
+        { status: 500 }
+      );
+    }
+
+    // Check if token needs refresh (proactive refresh 30 minutes before expiry)
+    if (shouldRefreshToken(connection.token_expires_at ?? undefined)) {
+      console.log("[Shopee Sync] Token needs refresh, refreshing...");
+      try {
+        const tokenData = await refreshAccessToken(
+          {
+            partnerId: shopeePartnerId,
+            partnerKey: shopeePartnerKey,
+            redirectUri: process.env.NEXT_PUBLIC_APP_URL + "/api/integrations/shopee/callback",
+          },
+          connection.refresh_token as string,
+          shopId
+        );
+
+        const tokenExpiresAt = new Date(Date.now() + (tokenData.expire_in || 14400) * 1000).toISOString();
+        const refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        // Update connection with new tokens
+        const { error: updateError } = await supabase
+          .from("marketplace_connections")
+          .update({
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            token_expires_at: tokenExpiresAt,
+            refresh_token_expires_at: refreshTokenExpiresAt,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", connectionId);
+
+        if (updateError) {
+          console.error("[Shopee Sync] Failed to update refreshed tokens:", updateError);
+          return NextResponse.json(
+            { error: "Failed to update refreshed tokens" },
+            { status: 500 }
+          );
+        }
+
+        // Update connection object in memory
+        connection.access_token = tokenData.access_token;
+        connection.refresh_token = tokenData.refresh_token;
+        connection.token_expires_at = tokenExpiresAt;
+
+        console.log("[Shopee Sync] Token refreshed successfully");
+      } catch (refreshError) {
+        console.error("[Shopee Sync] Failed to refresh token:", refreshError);
+
+        // If token is already expired, return 401
+        if (connection.token_expires_at && new Date(connection.token_expires_at) < new Date()) {
+          return NextResponse.json(
+            { error: "Access token expired and refresh failed, please reconnect" },
+            { status: 401 }
+          );
+        }
+        console.warn("[Shopee Sync] Token refresh failed but token not yet expired, continuing...");
+      }
+    }
+
+    // Get account mappings
+    const { data: mappings, error: mapError } = await supabase
+      .from("marketplace_account_mapping")
+      .select("*")
+      .eq("connection_id", connectionId)
+      .eq("company_id", companyId);
+
+    if (mapError) {
+      return NextResponse.json(
+        { error: "Failed to fetch account mappings" },
+        { status: 500 }
+      );
+    }
+
+    // Get categories and cash accounts for transaction creation
+    const [{ data: categories }, { data: cashAccounts }] = await Promise.all([
+      supabase
+        .from("account_categories")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("is_active", true),
+      supabase
+        .from("cash_accounts")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("is_active", true),
+    ]);
+
+    // Create initial sync log
+    syncLogId = uid("mkp_sync");
+    await supabase.from("marketplace_sync_logs").insert({
+      id: syncLogId,
+      connection_id: connectionId,
+      company_id: companyId,
+      sync_type: mode,
+      status: "running",
+      records_fetched: 0,
+      records_created: 0,
+      records_updated: 0,
+      records_skipped: 0,
+      started_at: new Date().toISOString(),
+    });
+
+    // Run sync engine
+    console.log("[Shopee Sync] Running sync engine...");
+
+    // Transform connection from snake_case to camelCase
+    const connectionCamelCase = {
+      id: connection.id,
+      companyId: connection.company_id,
+      platform: connection.platform,
+      shopId: connection.shop_id,
+      shopName: connection.shop_name,
+      shopCipher: connection.shop_cipher,
+      region: connection.region,
+      sellerType: connection.seller_type,
+      accessToken: connection.access_token,
+      refreshToken: connection.refresh_token,
+      tokenExpiresAt: connection.token_expires_at,
+      refreshTokenExpiresAt: connection.refresh_token_expires_at,
+      lastSyncAt: connection.last_sync_at,
+      status: connection.status,
+      createdAt: connection.created_at,
+      updatedAt: connection.updated_at,
+    };
+
+    const syncResult = await runSync({
+      connection: connectionCamelCase as any,
+      mappings: (mappings || []).map((m) => snakeToCamel(m)),
+      categories: (categories || []).map((c) => snakeToCamel(c)),
+      cashAccounts: (cashAccounts || []).map((ca) => snakeToCamel(ca)),
+      companyId,
+      partnerId: shopeePartnerId,
+      partnerKey: shopeePartnerKey,
+      mode,
+      startDate,
+      endDate,
+    });
+
+    console.log("[Shopee Sync] Sync engine completed:", syncResult.status);
+
+    // Upsert statements
+    if (syncResult.data.statements.length > 0) {
+      console.log(`[Shopee Sync] Upserting ${syncResult.data.statements.length} statements...`);
+
+      const platformIds = syncResult.data.statements.map((s) => s.platformStatementId);
+      const { data: existingStatements } = await supabase
+        .from("marketplace_statements")
+        .select("platform_statement_id, approval_status")
+        .eq("connection_id", connectionId)
+        .eq("company_id", companyId)
+        .in("platform_statement_id", platformIds);
+
+      const existingMap = new Map<string, string>();
+      (existingStatements || []).forEach((es: any) => {
+        existingMap.set(es.platform_statement_id, es.approval_status);
+      });
+
+      const newStatements: any[] = [];
+      const updateStatements: any[] = [];
+      let skippedCount = 0;
+
+      for (const stmt of syncResult.data.statements) {
+        const existingStatus = existingMap.get(stmt.platformStatementId);
+
+        // Skip rejected statements
+        if (existingStatus === "rejected") {
+          skippedCount++;
+          continue;
+        }
+
+        const baseData = {
+          connection_id: connectionId,
+          company_id: companyId,
+          platform_statement_id: stmt.platformStatementId,
+          statement_time: stmt.statementTime,
+          currency: stmt.currency,
+          settlement_amount: stmt.settlementAmount,
+          revenue_amount: stmt.revenueAmount,
+          fee_amount: stmt.feeAmount,
+          adjustment_amount: stmt.adjustmentAmount,
+          net_sales_amount: stmt.netSalesAmount,
+          shipping_cost_amount: stmt.shippingCostAmount,
+          payment_status: "PAID", // Shopee payouts released are paid
+          payment_id: stmt.paymentId,
+          payment_time: stmt.paymentTime,
+          reconciled: stmt.reconciled,
+          order_count: stmt.orderCount,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (!existingStatus) {
+          newStatements.push({
+            ...baseData,
+            id: stmt.id,
+            approval_status: "pending_approval",
+          });
+        } else {
+          updateStatements.push(baseData);
+        }
+      }
+
+      console.log(`[Shopee Sync] Statements: ${newStatements.length} new, ${updateStatements.length} existing, ${skippedCount} skipped (rejected)`);
+
+      syncResult.statements.created = newStatements.length;
+      syncResult.statements.updated = updateStatements.length;
+
+      // Insert new statements
+      if (newStatements.length > 0) {
+        const { error: insertError } = await supabase
+          .from("marketplace_statements")
+          .insert(newStatements);
+
+        if (insertError) {
+          console.error("[Shopee Sync] Failed to insert new statements:", insertError);
+          syncResult.errors.push({
+            stage: "statements",
+            message: `Failed to insert ${newStatements.length} new statements: ${insertError.message}`,
+          });
+        }
+      }
+
+      // Update existing statements
+      if (updateStatements.length > 0) {
+        let errorCount = 0;
+        for (const stmt of updateStatements) {
+          const { error: updateError } = await supabase
+            .from("marketplace_statements")
+            .update(stmt)
+            .eq("connection_id", connectionId)
+            .eq("company_id", companyId)
+            .eq("platform_statement_id", stmt.platform_statement_id);
+
+          if (updateError) {
+            console.error("[Shopee Sync] Failed to update statement:", stmt.platform_statement_id, updateError);
+            errorCount++;
+          }
+        }
+        console.log(`[Shopee Sync] Statement updates: ${updateStatements.length - errorCount} succeeded, ${errorCount} failed`);
+      }
+    }
+
+    // Upsert orders
+    if (syncResult.data.orders.length > 0) {
+      console.log(`[Shopee Sync] Upserting ${syncResult.data.orders.length} orders...`);
+
+      const ordersToUpsert = syncResult.data.orders.map((order) => ({
+        id: order.id,
+        connection_id: connectionId,
+        company_id: companyId,
+        platform_order_id: order.platformOrderId,
+        platform_status: order.platformStatus,
+        order_create_time: order.orderCreateTime,
+        order_update_time: order.orderUpdateTime,
+        currency: order.currency,
+        subtotal: order.subtotal,
+        shipping_fee: order.shippingFee,
+        seller_discount: order.sellerDiscount,
+        platform_discount: order.platformDiscount,
+        total_amount: order.totalAmount,
+        settlement_status: order.settlementStatus,
+        settlement_amount: order.settlementAmount,
+        revenue_amount: order.revenueAmount,
+        fee_amount: order.feeAmount,
+        adjustment_amount: order.adjustmentAmount,
+        shipping_cost_amount: order.shippingCostAmount,
+        sync_status: order.syncStatus,
+        raw_data: order.rawData,
+        buyer_user_id: order.buyerUserId,
+        shipping_provider: order.shippingProvider,
+        updated_at: new Date().toISOString(),
+      })) as any[];
+
+      const BATCH_SIZE = 50;
+      let orderErrorsCount = 0;
+      let lastOrderError = null;
+
+      for (let i = 0; i < ordersToUpsert.length; i += BATCH_SIZE) {
+        const batch = ordersToUpsert.slice(i, i + BATCH_SIZE);
+        const { error: orderError } = await supabase
+          .from("marketplace_orders")
+          .upsert(batch, {
+            onConflict: "connection_id,platform_order_id",
+          });
+
+        if (orderError) {
+          console.error(`[Shopee Sync] Failed to upsert order batch starting at ${i}:`, orderError);
+          orderErrorsCount++;
+          lastOrderError = orderError;
+        }
+      }
+
+      if (orderErrorsCount > 0) {
+        syncResult.errors.push({
+          stage: "orders",
+          message: `Failed to upsert some orders: ${orderErrorsCount} batches failed. Last error: ${lastOrderError?.message}`,
+        });
+      }
+    }
+
+    // Update sync log
+    const completedAt = new Date().toISOString();
+    await supabase
+      .from("marketplace_sync_logs")
+      .update({
+        status: syncResult.status,
+        records_fetched: syncResult.statements.fetched + syncResult.orders.fetched,
+        records_created: syncResult.statements.created + syncResult.orders.created,
+        records_updated: syncResult.statements.updated + syncResult.orders.updated,
+        records_skipped: 0,
+        error_message: syncResult.errors.length > 0 ? syncResult.errors.map((e) => e.message).join("; ") : null,
+        completed_at: completedAt,
+      })
+      .eq("id", syncLogId);
+
+    // Update connection last_sync_at
+    const syncAnchor = endDate || completedAt;
+    await supabase
+      .from("marketplace_connections")
+      .update({ last_sync_at: syncAnchor })
+      .eq("id", connectionId);
+
+    console.log(`[Shopee Sync] Completed: ${syncResult.statements.fetched} statements, ${syncResult.orders.fetched} orders`);
+
+    return NextResponse.json({
+      success: true,
+      syncLogId,
+      summary: {
+        statements: syncResult.statements,
+        orders: syncResult.orders,
+        duration: syncResult.duration,
+      },
+      errors: syncResult.errors,
+    });
+  } catch (error) {
+    console.error("[Shopee Sync] Error:", error);
+
+    if (syncLogId) {
+      try {
+        await supabase
+          .from("marketplace_sync_logs")
+          .update({
+            status: "error",
+            error_message: error instanceof Error ? error.message : String(error),
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", syncLogId);
+      } catch (logError) {
+        console.error("[Shopee Sync] Failed to update sync log error state:", logError);
+      }
+    }
+
+    return NextResponse.json(
+      { error: "Sync failed", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}

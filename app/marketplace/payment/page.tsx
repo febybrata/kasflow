@@ -314,18 +314,57 @@ export default function MarketplacePaymentPage() {
     setApproving(true);
     setShowConfirmModal(false);
     try {
-      const response = await fetch("/api/integrations/tiktok/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statementIds: ids, companyId, userId }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        toast.success(`Berhasil approve ${data.summary?.approved || 0} statement.`);
+      // Find selected statements to identify their platform
+      const selectedStmts = (statementsData?.pages || [])
+        .flatMap((page) => page.statements || [])
+        .filter((s: any) => ids.includes(s.id));
+
+      const tiktokIds = selectedStmts
+        .filter((s: any) => s.platform === "tiktok_shop" || !s.platform)
+        .map((s: any) => s.id);
+      const shopeeIds = selectedStmts
+        .filter((s: any) => s.platform === "shopee")
+        .map((s: any) => s.id);
+
+      let successCount = 0;
+      let errorMsgs: string[] = [];
+
+      if (tiktokIds.length > 0) {
+        const res = await fetch("/api/integrations/tiktok/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ statementIds: tiktokIds, companyId, userId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          successCount += data.summary?.approved || 0;
+        } else {
+          errorMsgs.push(`TikTok: ${data.error}`);
+        }
+      }
+
+      if (shopeeIds.length > 0) {
+        const res = await fetch("/api/integrations/shopee/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ statementIds: shopeeIds, companyId, userId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          successCount += data.summary?.approved || 0;
+        } else {
+          errorMsgs.push(`Shopee: ${data.error}`);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Berhasil approve ${successCount} statement.`);
         setSelectedStatements(new Set());
         queryClient.invalidateQueries({ queryKey: ["statements"] });
-      } else {
-        toast.error(`Gagal approve: ${data.error}`);
+      }
+
+      if (errorMsgs.length > 0) {
+        toast.error(`Gagal approve: ${errorMsgs.join(" | ")}`);
       }
     } catch (error) {
       toast.error("Gagal approve statement.");

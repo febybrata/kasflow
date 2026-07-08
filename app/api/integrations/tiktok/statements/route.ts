@@ -90,9 +90,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      statements: statements.map((stmt) => ({
+      statements: statements.map((stmt: any) => ({
         id: stmt.id,
         connectionId: stmt.connection_id,
+        platform: stmt.marketplace_connections?.platform || 'tiktok_shop',
         shopName: stmt.marketplace_connections?.display_name || stmt.marketplace_connections?.shop_name || 'Unknown',
         platformStatementId: stmt.platform_statement_id,
         statementTime: stmt.statement_time,
