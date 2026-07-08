@@ -82,6 +82,7 @@ export default function MarketplaceOrdersPage() {
 
   const [selectedShop, setSelectedShop] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [datePreset, setDatePreset] = useState("this_month");
   const [filterStartDate, setFilterStartDate] = useState(getThisMonthStartDate);
   const [filterEndDate, setFilterEndDate] = useState(getThisMonthEndDate);
@@ -116,7 +117,7 @@ export default function MarketplaceOrdersPage() {
     isFetchingNextPage,
     isLoading: loadingOrders,
   } = useInfiniteQuery({
-    queryKey: ["orders", companyId, selectedShop, filterStartDate, filterEndDate, statusFilter],
+    queryKey: ["orders", companyId, selectedShop, filterStartDate, filterEndDate, statusFilter, selectedPlatform],
     queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams({
         companyId,
@@ -124,6 +125,7 @@ export default function MarketplaceOrdersPage() {
         offset: pageParam.toString(),
         startDate: filterStartDate,
         endDate: filterEndDate,
+        platform: selectedPlatform,
       });
       if (selectedShop !== "all") {
         params.set("connectionId", selectedShop);
@@ -181,6 +183,16 @@ export default function MarketplaceOrdersPage() {
     return () => observer.disconnect();
   }, [handleLoadMore]);
 
+  const handlePlatformChange = (platform: string) => {
+    setSelectedPlatform(platform);
+    setSelectedShop("all");
+  };
+
+  const filteredShops = shops.filter((shop: any) => {
+    if (selectedPlatform === "all") return true;
+    return shop.platform === selectedPlatform;
+  });
+
   const handleMonthChange = (monthStr: string) => {
     setSelectedMonth(monthStr);
     if (!monthStr) return;
@@ -227,10 +239,34 @@ export default function MarketplaceOrdersPage() {
       {/* Platform Filter */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground mr-1">Platform:</span>
-        <button className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-600 text-white">
+        <button
+          onClick={() => handlePlatformChange("all")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            selectedPlatform === "all"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
+          Semua Platform
+        </button>
+        <button
+          onClick={() => handlePlatformChange("tiktok_shop")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            selectedPlatform === "tiktok_shop"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
           TikTok Shop
         </button>
-        <button className="px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed" disabled>
+        <button
+          onClick={() => handlePlatformChange("shopee")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            selectedPlatform === "shopee"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
           Shopee
         </button>
         <button className="px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed" disabled>
@@ -251,8 +287,8 @@ export default function MarketplaceOrdersPage() {
         <Filter className="h-4 w-4 text-muted-foreground" />
         <select value={selectedShop} onChange={(e) => setSelectedShop(e.target.value)}
           className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10">
-          <option value="all">Semua Toko ({shops.length})</option>
-          {shops.map((shop: Shop) => (
+          <option value="all">Semua Toko ({filteredShops.length})</option>
+          {filteredShops.map((shop: Shop) => (
             <option key={shop.id} value={shop.id}>{shop.display_name || shop.shop_name}</option>
           ))}
         </select>

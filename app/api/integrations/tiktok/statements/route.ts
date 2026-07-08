@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const offset = parseInt(searchParams.get("offset") || "0");
     const startDate = searchParams.get("startDate");
+    const platform = searchParams.get("platform");
     const endDate = searchParams.get("endDate");
 
     if (!companyId) {
@@ -27,15 +28,24 @@ export async function GET(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 1. Build paginated query
+    let selectString = "*, marketplace_connections(id, platform, shop_name, display_name)";
+    if (platform && platform !== "all") {
+      selectString = "*, marketplace_connections!inner(id, platform, shop_name, display_name)";
+    }
+
     let query = supabase
       .from("marketplace_statements")
-      .select("*, marketplace_connections(id, platform, shop_name, display_name)", { count: "exact" })
+      .select(selectString, { count: "exact" })
       .eq("company_id", companyId)
       .order("statement_time", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (connectionId && connectionId !== "all") {
       query = query.eq("connection_id", connectionId);
+    }
+
+    if (platform && platform !== "all") {
+      query = query.eq("marketplace_connections.platform", platform);
     }
     if (startDate) {
       query = query.gte("statement_time", `${startDate}T00:00:00Z`);
@@ -55,13 +65,22 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Build summary query for totals
+    let summarySelectString = "revenue_amount, fee_amount, settlement_amount, payment_status, reconciled, approval_status, adjustment_amount";
+    if (platform && platform !== "all") {
+      summarySelectString = "revenue_amount, fee_amount, settlement_amount, payment_status, reconciled, approval_status, adjustment_amount, marketplace_connections!inner(platform)";
+    }
+
     let summaryQuery = supabase
       .from("marketplace_statements")
-      .select("revenue_amount, fee_amount, settlement_amount, payment_status, reconciled, approval_status, adjustment_amount")
+      .select(summarySelectString)
       .eq("company_id", companyId);
 
     if (connectionId && connectionId !== "all") {
       summaryQuery = summaryQuery.eq("connection_id", connectionId);
+    }
+
+    if (platform && platform !== "all") {
+      summaryQuery = summaryQuery.eq("marketplace_connections.platform", platform);
     }
     if (startDate) {
       summaryQuery = summaryQuery.gte("statement_time", `${startDate}T00:00:00Z`);

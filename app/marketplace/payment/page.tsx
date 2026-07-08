@@ -88,6 +88,7 @@ export default function MarketplacePaymentPage() {
 
   const [selectedShop, setSelectedShop] = useState("all"); // "all" or connectionId
   const [activeTab, setActiveTab] = useState("statements");
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [selectedStatements, setSelectedStatements] = useState<Set<string>>(new Set());
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -122,7 +123,7 @@ export default function MarketplacePaymentPage() {
   // Reset statements selection when filters change
   useEffect(() => {
     setSelectedStatements(new Set());
-  }, [selectedShop, filterStartDate, filterEndDate]);
+  }, [selectedShop, filterStartDate, filterEndDate, selectedPlatform]);
 
   // Fetch shops
   const { data: shopsData, isLoading: loadingShops } = useQuery({
@@ -145,12 +146,13 @@ export default function MarketplacePaymentPage() {
     isFetchingNextPage,
     isLoading: loadingStatements,
   } = useInfiniteQuery({
-    queryKey: ["statements", companyId, selectedShop, filterStartDate, filterEndDate],
+    queryKey: ["statements", companyId, selectedShop, filterStartDate, filterEndDate, selectedPlatform],
     queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams({
         companyId,
         offset: pageParam.toString(),
         limit: "10", // 10 per page
+        platform: selectedPlatform,
       });
       if (selectedShop !== "all") {
         params.append("connectionId", selectedShop);
@@ -254,6 +256,17 @@ export default function MarketplacePaymentPage() {
   }, [handleLoadMore]);
 
   const loading = loadingShops || loadingStatements;
+
+  const handlePlatformChange = (platform: string) => {
+    setSelectedPlatform(platform);
+    setSelectedShop("all");
+    setSelectedStatements(new Set());
+  };
+
+  const filteredShops = shops.filter((shop: any) => {
+    if (selectedPlatform === "all") return true;
+    return shop.platform === selectedPlatform;
+  });
 
   const handleMonthChange = (monthStr: string) => {
     setSelectedMonth(monthStr);
@@ -448,10 +461,34 @@ export default function MarketplacePaymentPage() {
       {/* Platform Filter */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground mr-1">Platform:</span>
-        <button className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-600 text-white">
+        <button
+          onClick={() => handlePlatformChange("all")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            selectedPlatform === "all"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
+          Semua Platform
+        </button>
+        <button
+          onClick={() => handlePlatformChange("tiktok_shop")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            selectedPlatform === "tiktok_shop"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
           TikTok Shop
         </button>
-        <button className="px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed" disabled>
+        <button
+          onClick={() => handlePlatformChange("shopee")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+            selectedPlatform === "shopee"
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
           Shopee
         </button>
         <button className="px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed" disabled>
@@ -475,8 +512,8 @@ export default function MarketplacePaymentPage() {
           onChange={(e) => { setSelectedShop(e.target.value); setSelectedStatements(new Set()); }}
           className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-card px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
         >
-          <option value="all">Semua Toko ({shops.length})</option>
-          {shops.map((shop: Shop) => (
+          <option value="all">Semua Toko ({filteredShops.length})</option>
+          {filteredShops.map((shop: Shop) => (
             <option key={shop.id} value={shop.id}>
               {shop.display_name || shop.shop_name}
             </option>

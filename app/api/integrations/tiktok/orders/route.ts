@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const status = searchParams.get("status");
+    const platform = searchParams.get("platform");
 
     if (!companyId) {
       return NextResponse.json(
@@ -31,15 +32,24 @@ export async function GET(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Build query — connectionId is optional for cross-shop view
+    let selectString = "*, marketplace_connections(id, platform, shop_name, display_name)";
+    if (platform && platform !== "all") {
+      selectString = "*, marketplace_connections!inner(id, platform, shop_name, display_name)";
+    }
+
     let query = supabase
       .from("marketplace_orders")
-      .select("*, marketplace_connections(id, platform, shop_name, display_name)", { count: "exact" })
+      .select(selectString, { count: "exact" })
       .eq("company_id", companyId)
       .order("order_create_time", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (connectionId) {
       query = query.eq("connection_id", connectionId);
+    }
+
+    if (platform && platform !== "all") {
+      query = query.eq("marketplace_connections.platform", platform);
     }
 
     // Server-side date filtering (convert WIB UTC+7 to UTC)
@@ -61,13 +71,22 @@ export async function GET(request: NextRequest) {
     const { data: orders, error, count } = await query;
 
     // Fetch statements for proportional settlement calculation
+    let stmtSelectString = "statement_time, settlement_amount, revenue_amount, fee_amount";
+    if (platform && platform !== "all") {
+      stmtSelectString = "statement_time, settlement_amount, revenue_amount, fee_amount, marketplace_connections!inner(platform)";
+    }
+
     let stmtQuery = supabase
       .from("marketplace_statements")
-      .select("statement_time, settlement_amount, revenue_amount, fee_amount")
+      .select(stmtSelectString)
       .eq("company_id", companyId);
 
     if (connectionId) {
       stmtQuery = stmtQuery.eq("connection_id", connectionId);
+    }
+
+    if (platform && platform !== "all") {
+      stmtQuery = stmtQuery.eq("marketplace_connections.platform", platform);
     }
 
     if (startDate) {
@@ -120,13 +139,22 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate status breakdown (need separate query without status filter)
+    let statsSelectString = "platform_status, total_amount, settlement_status";
+    if (platform && platform !== "all") {
+      statsSelectString = "platform_status, total_amount, settlement_status, marketplace_connections!inner(platform)";
+    }
+
     let statsQuery = supabase
       .from("marketplace_orders")
-      .select("platform_status, total_amount, settlement_status")
+      .select(statsSelectString)
       .eq("company_id", companyId);
 
     if (connectionId) {
       statsQuery = statsQuery.eq("connection_id", connectionId);
+    }
+
+    if (platform && platform !== "all") {
+      statsQuery = statsQuery.eq("marketplace_connections.platform", platform);
     }
 
     // Apply same date filters to stats query
