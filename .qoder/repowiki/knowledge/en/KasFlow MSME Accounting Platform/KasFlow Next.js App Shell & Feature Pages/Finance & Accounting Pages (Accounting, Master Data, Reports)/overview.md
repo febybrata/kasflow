@@ -1,0 +1,1 @@
+Next.js client pages that let users manage accounting periods and COA, configure master entities (categories, cash accounts, customers/suppliers), and view/export financial reports.

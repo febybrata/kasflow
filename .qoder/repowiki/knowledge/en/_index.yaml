@@ -1,0 +1,289 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: main
+nodes_managed: true
+exported_at: "2026-07-11T05:59:02Z"
+modules:
+    "":
+        dir_name: KasFlow MSME Accounting Platform
+        title: KasFlow MSME Accounting Platform
+        scope:
+            - README.md
+            - .gitignore
+            - next.config.ts
+            - tailwind.config.ts
+            - postcss.config.js
+            - tsconfig.json
+            - package.json
+            - package-lock.json
+            - .env.example
+            - check-adj.out
+            - check-adj.ts
+            - check-db-rev.ts
+            - check-db.ts
+            - check-jun30.out
+            - check-jun30.ts
+            - check-stmt.out
+            - check-stmt.ts
+            - check-totals.ts
+            - check_conns.js
+            - check_schema.js
+            - convert.js
+            - count-stmt.ts
+            - db-rev.out
+            - delete_rest.js
+            - delete_user.js
+            - find-diff.ts
+            - find-fees.ts
+            - find-order.out
+            - find-order.ts
+            - fix-fee.out
+            - fix-fee.ts
+            - fix-june.out
+            - fix-june.ts
+            - get-new-fees.ts
+            - get-totals.out
+            - get-totals.ts
+            - insert-statements.ts
+            - manual-sync.out
+            - manual-sync.ts
+            - manual-sync2.out
+            - manual-sync2.ts
+            - manual-sync3.out
+            - manual-sync3.ts
+            - manual-sync4.out
+            - manual-sync4.ts
+            - manual-sync5.ts
+            - next-env.d.ts
+            - order-detail.out
+            - order-detail.ts
+            - order-detail2.out
+            - order-detail2.ts
+            - out-adj.txt
+            - out-correct.txt
+            - out-discount.txt
+            - out-new-fees.txt
+            - out-slow.txt
+            - out.txt
+            - out2.txt
+            - out3.txt
+            - patch-adj.out
+            - patch-adj.ts
+            - patch-db.ts
+            - patch-june.out
+            - patch-june.ts
+            - print-conn.out
+            - print-conn.ts
+            - run_tiktok_sync.ts
+            - search-adj.out
+            - search-adj.ts
+            - skills-lock.json
+            - sum-adj.ts
+            - sum-api-correct.ts
+            - sum-api-slow.ts
+            - sum-api.ts
+            - sum-db.ts
+            - sum-diff.out
+            - sum-diff.ts
+            - sum-discount.ts
+            - sum-june.out
+            - sum-june.ts
+            - sum-stmt.out
+            - sum-stmt.ts
+            - sum-stmt2.ts
+            - supabase-schema.sql
+            - test-api.out
+            - test-api.ts
+            - test-camel.ts
+            - test-diff.ts
+            - test-diff2.ts
+            - test-json.ts
+            - test-json2.ts
+            - test-json3.ts
+            - test-order-err.txt
+            - test-order.json
+            - test-order.ts
+            - test-shopee.ts
+            - test-time.out
+            - test-time.ts
+            - test_tiktok_api.js
+            - test_tiktok_real.js
+            - test_tiktok_real2.js
+            - test_tiktok_real3.js
+            - trigger_sync.js
+            - update-walkthrough.sh
+            - vercel.json
+        source_files: []
+        children:
+            - agent_skills
+            - app_pages
+            - data_scripts
+            - reference_docs
+            - shared_libs
+            - ui_components
+        depends_on: []
+        related_to: []
+    agent_skills:
+        dir_name: Agent Skills Registry
+        title: Agent Skills Registry
+        scope:
+            - .agents/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    app_pages:
+        dir_name: KasFlow Next.js App Shell & Feature Pages
+        title: KasFlow Next.js App Shell & Feature Pages
+        scope:
+            - app/
+        source_files: []
+        children:
+            - app_pages/api_routes
+            - app_pages/finance_pages
+            - app_pages/settings_onboarding_pages
+        depends_on: []
+        related_to: []
+    app_pages/api_routes:
+        dir_name: Marketplace Integration API Routes
+        title: Marketplace Integration API Routes
+        scope:
+            - app/api/
+        source_files: []
+        children:
+            - app_pages/api_routes/shopee_integration
+            - app_pages/api_routes/tiktok_integration
+        depends_on: []
+        related_to: []
+    app_pages/api_routes/shopee_integration:
+        dir_name: Shopee Marketplace Integration API
+        title: Shopee Marketplace Integration API
+        scope:
+            - app/api/integrations/shopee/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    app_pages/api_routes/tiktok_integration:
+        dir_name: TikTok Shop Integration API Routes
+        title: TikTok Shop Integration API Routes
+        scope:
+            - app/api/integrations/tiktok/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    app_pages/finance_pages:
+        dir_name: Finance & Accounting Pages (Accounting, Master Data, Reports)
+        title: Finance & Accounting Pages (Accounting, Master Data, Reports)
+        scope:
+            - app/accounting/
+            - app/master-data/
+            - app/reports/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    app_pages/settings_onboarding_pages:
+        dir_name: Settings, Onboarding Wizard & Utilities Pages
+        title: Settings, Onboarding Wizard & Utilities Pages
+        scope:
+            - app/settings/
+            - app/onboarding/
+            - app/utilities/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    data_scripts:
+        dir_name: Supabase Schema Migration Scripts
+        title: Supabase Schema Migration Scripts
+        scope:
+            - supabase-migrations/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    reference_docs:
+        dir_name: Project Reference Documentation & Schema Artifacts
+        title: Project Reference Documentation & Schema Artifacts
+        scope:
+            - docs/
+            - reff/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    shared_libs:
+        dir_name: Shared Accounting Library & Store
+        title: Shared Accounting Library & Store
+        scope:
+            - lib/
+            - store/
+        source_files: []
+        children:
+            - shared_libs/marketplace_adapters
+            - shared_libs/shared_utils
+            - shared_libs/supabase_client
+        depends_on: []
+        related_to: []
+    shared_libs/marketplace_adapters:
+        dir_name: Marketplace Adapters (Shopee & TikTok Shop)
+        title: Marketplace Adapters (Shopee & TikTok Shop)
+        scope:
+            - lib/marketplace/
+        source_files: []
+        children:
+            - shared_libs/marketplace_adapters/shopee
+            - shared_libs/marketplace_adapters/tiktok
+        depends_on: []
+        related_to: []
+    shared_libs/marketplace_adapters/shopee:
+        dir_name: Shopee Marketplace Adapter
+        title: Shopee Marketplace Adapter
+        scope:
+            - lib/marketplace/shopee/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    shared_libs/marketplace_adapters/tiktok:
+        dir_name: TikTok Shop Marketplace Adapter
+        title: TikTok Shop Marketplace Adapter
+        scope:
+            - lib/marketplace/tiktok/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    shared_libs/shared_utils:
+        dir_name: Shared Accounting Domain Types & Utilities
+        title: Shared Accounting Domain Types & Utilities
+        scope:
+            - lib/utils.ts
+            - lib/types.ts
+            - lib/validation.ts
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    shared_libs/supabase_client:
+        dir_name: Supabase Client & Company Data Layer
+        title: Supabase Client & Company Data Layer
+        scope:
+            - lib/supabase/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    ui_components:
+        dir_name: KasFlow Application Shell & Shared UI Primitives
+        title: KasFlow Application Shell & Shared UI Primitives
+        scope:
+            - components/
+            - hooks/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

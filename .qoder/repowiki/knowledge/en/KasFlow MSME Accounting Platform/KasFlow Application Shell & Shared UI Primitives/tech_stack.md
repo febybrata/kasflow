@@ -1,0 +1,1 @@
+React Server Components with explicit `"use client"` directives; authentication via Supabase Auth (password + Google OAuth); data layer uses `@tanstack/react-query` through a single `QueryClientProvider`; toast notifications via `sonner`; icons from `lucide-react`; styling exclusively through Tailwind classes composed with a local `cn` utility.

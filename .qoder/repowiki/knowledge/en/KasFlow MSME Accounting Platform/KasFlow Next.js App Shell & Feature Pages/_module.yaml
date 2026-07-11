@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: app_pages
+title: KasFlow Next.js App Shell & Feature Pages
+scope:
+    - app/
+source_files: []
+depends_on: []
+related_to: []

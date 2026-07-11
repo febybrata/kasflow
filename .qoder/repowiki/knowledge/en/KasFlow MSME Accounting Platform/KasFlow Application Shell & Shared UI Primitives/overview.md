@@ -1,0 +1,1 @@
+Provides the authenticated app shell, navigation chrome (top bar, bottom tabs, profile menu), shared shadcn-style UI primitives, and cross-cutting React hooks for auth, data pagination, and debouncing.

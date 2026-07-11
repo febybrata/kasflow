@@ -1,0 +1,1 @@
+Node.js native `crypto` for HMAC-SHA256 signing, `fetch` for HTTP calls, TypeScript-only (no runtime deps); signs requests per TikTok Shop Open API spec (app_secret + path + sorted params + body + app_secret).

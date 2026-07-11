@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_libs/marketplace_adapters/shopee
+title: Shopee Marketplace Adapter
+scope:
+    - lib/marketplace/shopee/
+source_files: []
+depends_on: []
+related_to: []

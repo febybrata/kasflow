@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_libs/marketplace_adapters/tiktok
+title: TikTok Shop Marketplace Adapter
+scope:
+    - lib/marketplace/tiktok/
+source_files: []
+depends_on: []
+related_to: []

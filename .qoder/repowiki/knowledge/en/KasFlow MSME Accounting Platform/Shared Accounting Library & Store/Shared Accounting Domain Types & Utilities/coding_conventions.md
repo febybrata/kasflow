@@ -1,0 +1,4 @@
+- Domain shapes are declared as plain `type` aliases (not interfaces or classes) and kept free of behavior, while user-facing input validation lives separately in Zod schemas under `lib/validation.ts`.
+- Indonesian locale formatting is centralized through `Intl.NumberFormat` / `Intl.DateTimeFormat` with `{ locale: 'id-ID' }` rather than ad-hoc string manipulation.
+- Cross-field conditional validation uses Zod's `superRefine` to add contextual issues via `ctx.addIssue({ code: 'custom', path: [...], message })` instead of separate per-field validators.
+- Derived form value types are produced with `z.infer<typeof schema>` so the schema remains the single source of truth for both runtime validation and compile-time typing.

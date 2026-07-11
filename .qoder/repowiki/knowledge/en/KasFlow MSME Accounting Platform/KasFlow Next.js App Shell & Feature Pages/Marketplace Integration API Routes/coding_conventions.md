@@ -1,0 +1,4 @@
+- Each marketplace lives under its own `app/api/integrations/<platform>/...` subtree with parallel `auth`, `approve`, `callback`, and `sync` route files.
+- Supabase access uses the service-role key (`SUPABASE_SERVICE_ROLE_KEY`) and either the REST `/rest/v1/` endpoint or `createClient` to bypass RLS.
+- OAuth callback failures and success redirects go back to `/integrations` with query-string flags like `?connected=true` or `?error=...` instead of JSON responses.
+- Connection rows are upserted on `(company_id, platform, shop_id)` so re-authorizing a shop refreshes tokens without creating duplicates.

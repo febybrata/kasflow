@@ -1,0 +1,6 @@
+- Every client-side component file begins with the `"use client"` directive so it can consume `useState`, `useEffect`, and Next.js router hooks.
+- Class names are composed through the shared `cn()` helper from `@/lib/utils`, never via string concatenation of Tailwind tokens.
+- Navigation items are declared as plain data arrays (`NavItem[]`, `primaryItems`, `dropdowns`) and rendered generically rather than hard-coded per route.
+- Context consumers guard against missing providers by throwing an error in the hook itself (e.g. `useAuth` checks `context` before returning).
+- Async side effects that may race (company bootstrap) are memoized behind a module-level promise variable to deduplicate concurrent calls.
+- Hooks return a plain object of state + callbacks instead of using multiple `useState`/`useReducer` exports, keeping call sites destructured and predictable.

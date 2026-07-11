@@ -1,0 +1,1 @@
+TikTok Shop integration that authenticates via OAuth, paginates statements/orders/unsettled data from the TikTok Open API, and converts settled statements into KasFlow income/expense transactions.

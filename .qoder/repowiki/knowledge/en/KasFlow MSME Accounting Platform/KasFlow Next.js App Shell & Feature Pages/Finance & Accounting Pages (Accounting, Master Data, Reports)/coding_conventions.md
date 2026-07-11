@@ -1,0 +1,6 @@
+- Each page declares a typed union `TabType` / `ReportTab` and switches on an `activeTab` useState to render tab panels, with pill-style navigation buttons sharing identical Tailwind active/inactive classes.
+- Every mutation handler follows a dual-path pattern: if `appUser` exists it awaits the corresponding `*DB` function from `@/lib/supabase/company-service`; regardless, it also calls the matching local store setter so the UI stays responsive offline.
+- Form submissions validate required fields first, set a per-form `*Loading` flag before the try block, show success/error via `toast.success`/`toast.error`, and always clear loading in a `finally` block.
+- List views use a mobile-first split: a stacked card/list wrapped in `lg:hidden` alongside a `hidden lg:block` table or grid, both fed by the same store array.
+- Create vs edit mode is unified by storing the target id in an `editingXxxId` state variable (null = create, string = edit) and reusing the same form handler for both paths.
+- Period/date inputs enforce start < end and overlap checks against existing periods before persisting, surfacing errors through toast rather than throwing.

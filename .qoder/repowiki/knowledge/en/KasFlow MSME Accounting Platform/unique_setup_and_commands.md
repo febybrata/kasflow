@@ -1,0 +1,1 @@
+`npm run dev` / `npm run build` / `npm run start` drive the whole app through Next; `npm run typecheck` runs `tsc --noEmit` over the entire tree. One-off data work is executed directly from the repo root (e.g. `npx tsx check-adj.ts`, `npx tsx manual-sync.ts`, `node delete_user.js`) rather than via npm scripts.

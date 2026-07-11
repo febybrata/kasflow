@@ -1,0 +1,1 @@
+Next.js App Router client components, Zustand via `useKasFlowStore`, Supabase-backed company service, lucide-react icons, shadcn/ui primitives (Card/Badge/Button/Input/Select), and a custom toast from `@/lib/toast`.

@@ -1,0 +1,1 @@
+Provides the Supabase client, company bootstrap, typed database schema, and a full CRUD + realtime-sync service layer over the Kasflow accounting tables.

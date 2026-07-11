@@ -1,0 +1,1 @@
+Node.js native `crypto.createHmac('sha256', ...)` for Shopee's HMAC-SHA256 signing; `fetch` over HTTPS to `partner.shopeemobile.com` (production) or `openplatform.sandbox.test-stable.shopee.sg` (sandbox) controlled by `SHOPEE_IS_SANDBOX=true`.

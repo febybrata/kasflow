@@ -1,0 +1,3 @@
+- All cross-module imports use the `@/*` path alias instead of relative paths, enforced by the root `tsconfig.json` `paths` mapping.
+- Database schema changes are committed as date-stamped SQL files under `data_scripts/` rather than versioned migration tools, and the latest file drives the current Supabase schema.
+- Ad-hoc data-fix and reconciliation scripts live at the repository root (prefixed `check-`, `sum-`, `patch-`, `manual-sync*`, `test-*`) and import directly from `shared_libs` instead of being wrapped in package scripts.

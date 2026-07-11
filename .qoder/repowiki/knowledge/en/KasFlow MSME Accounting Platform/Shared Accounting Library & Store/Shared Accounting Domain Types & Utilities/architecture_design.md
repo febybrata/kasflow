@@ -1,0 +1,6 @@
+Three flat files with no internal sub-packages:
+- `lib/types.ts` is the canonical domain model: plain TypeScript type aliases for accounts, transactions, journal/ledger entries, reports (ProfitLossReport, BalanceSheetReport), marketplace entities, and related enums — consumed by every other module.
+- `lib/utils.ts` is a pure-function utility library with no side effects; it re-exports only helpers (`cn`, `formatCurrency`, `formatCountCompact`, `formatDate`, `monthKey`, `uid`, `percentageChange`, `formatNumberInput`/`parseNumberInput`) and depends on `clsx` + `tailwind-merge` for class merging and `Intl.NumberFormat` / `Intl.DateTimeFormat` for id-ID localization.
+- `lib/validation.ts` owns Zod schemas (`transactionSchema`, `businessProfileSchema`) that mirror the shape of the corresponding types in `types.ts`; `z.infer` derives form-value types (`TransactionFormValues`, `BusinessProfileFormValues`) used by React Hook Form.
+
+Dependency direction is one-way: `validation.ts` imports from `types.ts` implicitly via shared enum values; `utils.ts` has no import into either. There are no runtime exports beyond what each file explicitly `export`s, so consumers pick only what they need.

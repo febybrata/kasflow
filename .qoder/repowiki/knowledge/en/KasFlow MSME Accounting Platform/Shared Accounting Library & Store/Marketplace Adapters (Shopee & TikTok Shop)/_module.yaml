@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: shared_libs/marketplace_adapters
+title: Marketplace Adapters (Shopee & TikTok Shop)
+scope:
+    - lib/marketplace/
+source_files: []
+depends_on: []
+related_to: []
