@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -99,13 +101,13 @@ export async function GET(request: NextRequest) {
     let pendingCount = 0;
 
     if (summaryData) {
-      const settled = summaryData.filter((s) => s.payment_status === "PAID");
+      const settled = (summaryData as any[]).filter((s) => s.payment_status === "PAID");
       totalRevenue = settled.reduce((sum, s) => sum + (s.revenue_amount || 0), 0);
       totalFee = settled.reduce((sum, s) => sum + Math.abs(s.fee_amount || 0), 0);
       totalSettlement = settled.reduce((sum, s) => sum + (s.settlement_amount || 0), 0);
       totalAdjustment = settled.reduce((sum, s) => sum + (s.adjustment_amount || 0), 0);
-      reconciledCount = summaryData.filter((s) => s.reconciled).length;
-      pendingCount = summaryData.filter((s) => s.approval_status === "pending_approval").length;
+      reconciledCount = (summaryData as any[]).filter((s) => s.reconciled).length;
+      pendingCount = (summaryData as any[]).filter((s) => s.approval_status === "pending_approval").length;
     }
 
     return NextResponse.json({

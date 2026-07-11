@@ -81,70 +81,200 @@ export async function syncStatements(
   } = params;
 
   // Prepare date range (unix timestamps)
-  const releaseTimeFrom = startDate
+  const totalReleaseTimeFrom = startDate
     ? Math.floor(new Date(`${startDate}T00:00:00+07:00`).getTime() / 1000)
-    : Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
+    : Math.floor((Date.now() - 14 * 24 * 60 * 60 * 1000) / 1000);
   
-  const releaseTimeTo = endDate
+  const totalReleaseTimeTo = endDate
     ? Math.floor(new Date(`${endDate}T23:59:59+07:00`).getTime() / 1000)
     : Math.floor(Date.now() / 1000);
 
   const rawIncomeDetails: ShopeeIncomeDetail[] = [];
-  let cursor = "";
-  let hasMore = true;
+  const CHUNK_SIZE_SECONDS = 14 * 24 * 60 * 60; // 14 days to be safe within 15-day limit
+
+  let currentFrom = totalReleaseTimeFrom;
 
   // Step 1: Pull granular income details from Shopee API
-  // Using v2.payment.get_income_detail
-  try {
-    while (hasMore) {
-      const extraParams: Record<string, any> = {
-        release_time_from: releaseTimeFrom,
-        release_time_to: releaseTimeTo,
-        page_size: 100,
-      };
-
-      if (cursor) {
-        extraParams.cursor = cursor;
-      }
-
-      const response = await shopeeApiGet<any>(
-        "/api/v2/payment/get_income_detail",
-        partnerId,
-        partnerKey,
-        accessToken,
-        shopId,
-        extraParams
-      );
-
-      if (response && response.income_list) {
-        response.income_list.forEach((inc: any) => {
-          rawIncomeDetails.push({
-            order_sn: inc.order_sn,
-            buyer_payment_method: inc.buyer_payment_method || "",
-            income_amount: parseFloat(inc.income_amount || "0") || 0,
-            revenue_amount: parseFloat(inc.revenue_amount || "0") || 0,
-            platform_fee: parseFloat(inc.platform_fee || "0") || 0,
-            adjustment_amount: parseFloat(inc.adjustment_amount || "0") || 0,
-            shipping_fee: parseFloat(inc.shipping_fee || "0") || 0,
-            voucher_seller: parseFloat(inc.voucher_seller || "0") || 0,
-            voucher_shopee: parseFloat(inc.voucher_shopee || "0") || 0,
-            release_time: inc.release_time,
-          });
-        });
-      }
-
-      hasMore = response?.has_more || false;
-      cursor = response?.next_cursor || "";
-
-      if (hasMore) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
+  // Using v2.payment.get_escrow_list chunked by max 14 days
+  while (currentFrom <= totalReleaseTimeTo) {
+    let currentTo = currentFrom + CHUNK_SIZE_SECONDS;
+    if (currentTo > totalReleaseTimeTo) {
+      currentTo = totalReleaseTimeTo;
     }
-  } catch (err) {
-    console.error("[Shopee Sync] Failed to fetch get_income_detail, falling back to empty list:", err);
+
+    let pageNo = 1;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        const extraParams: Record<string, any> = {
+          release_time_from: currentFrom,
+          release_time_to: currentTo,
+          page_size: 50,
+          page_no: pageNo,
+        };
+
+        const response = await shopeeApiGet<any>(
+          "/api/v2/payment/get_escrow_list",
+          partnerId,
+          partnerKey,
+          accessToken,
+          shopId,
+          extraParams
+        );
+
+        console.log(`[Shopee Debug] get_income_detail chunk ${currentFrom} - ${currentTo}:`, JSON.stringify(response));
+
+        const escrowList = response?.escrow_list || [];
+        
+        // Batch fetch details (max 5 concurrent requests)
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < escrowList.length; i += BATCH_SIZE) {
+          const batch = escrowList.slice(i, i + BATCH_SIZE);
+          
+          await Promise.all(batch.map(async (inc: any) => {
+            try {
+              const detailResp = await shopeeApiGet<any>(
+                "/api/v2/payment/get_escrow_detail",
+                partnerId,
+                partnerKey,
+                accessToken,
+                shopId,
+                { order_sn: inc.order_sn }
+              );
+
+              const income = detailResp?.order_income || detailResp || {};
+              const payout = parseFloat(income.escrow_amount || inc.payout_amount || "0") || 0;
+              
+              const originalPrice = parseFloat(income.original_price || "0") || 0;
+              const sellerDiscount = parseFloat(income.seller_discount || "0") || 0;
+              let grossSales = originalPrice - sellerDiscount;
+              
+              if (grossSales === 0) {
+                 grossSales = parseFloat(income.buyer_total_amount || "0") || payout;
+              }
+
+              const commission = parseFloat(income.commission_fee || "0") || 0;
+              const service = parseFloat(income.service_fee || "0") || 0;
+              const transaction = parseFloat(income.seller_transaction_fee || "0") || 0;
+              const processing = parseFloat(income.seller_order_processing_fee || "0") || 0;
+              const amsCommission = parseFloat(income.order_ams_commission_fee || income.ams_commission_fee || income.affiliate_commission || "0") || 0;
+              const campaignFee = parseFloat(income.campaign_fee || "0") || 0;
+              const platformFee = commission + service + transaction + processing + amsCommission + campaignFee;
+
+              const actualShipping = parseFloat(income.actual_shipping_fee || income.final_shipping_fee || "0") || 0;
+              const buyerPaidShipping = parseFloat(income.buyer_paid_shipping_fee || "0") || 0;
+              const shopeeRebate = parseFloat(income.shopee_shipping_rebate || "0") || 0;
+              const thirdPartyDiscount = parseFloat(income.shipping_fee_discount_from_3pf || "0") || 0;
+              
+              let shippingFee = actualShipping - buyerPaidShipping - shopeeRebate - thirdPartyDiscount;
+              if (shippingFee < 0) shippingFee = 0;
+
+              const adjustment = parseFloat(income.seller_lost_compensation || income.drc_adjustable_refund || "0") || 0;
+
+              rawIncomeDetails.push({
+                order_sn: inc.order_sn,
+                buyer_payment_method: "",
+                income_amount: payout,
+                revenue_amount: grossSales,
+                platform_fee: platformFee,
+                adjustment_amount: adjustment,
+                shipping_fee: shippingFee,
+                voucher_seller: parseFloat(income.voucher_from_seller || "0") || 0,
+                voucher_shopee: parseFloat(income.voucher_from_shopee || "0") || 0,
+                release_time: inc.escrow_release_time,
+              });
+            } catch (err) {
+              console.error(`[Shopee Sync] Failed to fetch escrow detail for ${inc.order_sn}:`, err);
+              // Fallback to basic list data
+              rawIncomeDetails.push({
+                order_sn: inc.order_sn,
+                buyer_payment_method: "",
+                income_amount: parseFloat(inc.payout_amount || "0") || 0,
+                revenue_amount: parseFloat(inc.payout_amount || "0") || 0,
+                platform_fee: 0,
+                adjustment_amount: 0,
+                shipping_fee: 0,
+                voucher_seller: 0,
+                voucher_shopee: 0,
+                release_time: inc.escrow_release_time,
+              });
+            }
+          }));
+          
+          // Small delay to prevent rate limit
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        hasMore = response?.more || false;
+        pageNo++;
+
+        if (hasMore) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+    } catch (err) {
+      console.error(`[Shopee Sync] Failed to fetch chunk ${currentFrom} - ${currentTo}, continuing to next chunk:`, err);
+    }
+
+    // Move to next chunk
+    currentFrom = currentTo + 1;
   }
 
   console.log(`[Shopee SyncStatements] Fetched ${rawIncomeDetails.length} granular income records`);
+
+  // Step 1.5: Pull Wallet Adjustments
+  // Using v2.payment.get_wallet_transaction_list chunked by max 14 days
+  const rawAdjustments: any[] = [];
+  currentFrom = totalReleaseTimeFrom;
+  
+  while (currentFrom <= totalReleaseTimeTo) {
+    let currentTo = currentFrom + CHUNK_SIZE_SECONDS;
+    if (currentTo > totalReleaseTimeTo) currentTo = totalReleaseTimeTo;
+
+    let pageNo = 1;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        const extraParams: Record<string, any> = {
+          create_time_from: currentFrom,
+          create_time_to: currentTo,
+          page_size: 50,
+          page_no: pageNo,
+        };
+
+        const response = await shopeeApiGet<any>(
+          "/api/v2/payment/get_wallet_transaction_list",
+          partnerId,
+          partnerKey,
+          accessToken,
+          shopId,
+          extraParams
+        );
+
+        const list = response?.transaction_list || [];
+        for (const txn of list) {
+          if (txn.transaction_tab_type === "wallet_adjustment_filter" || txn.transaction_type === "FULFILMENT_COMPENSATE_ADD") {
+            rawAdjustments.push(txn);
+          }
+        }
+
+        hasMore = response?.more || false;
+        pageNo++;
+
+        if (hasMore) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+    } catch (err) {
+      console.error(`[Shopee Sync] Failed to fetch wallet chunk ${currentFrom} - ${currentTo}:`, err);
+    }
+    
+    currentFrom = currentTo + 1;
+  }
+  
+  console.log(`[Shopee SyncStatements] Fetched ${rawAdjustments.length} wallet adjustments`);
 
   // Step 2: Group by release date to construct Virtual Daily Statements
   const groupedStatements = new Map<string, {
@@ -178,6 +308,28 @@ export async function syncStatements(
       existing.adjustmentAmount += detail.adjustment_amount;
       existing.shippingCostAmount += detail.shipping_fee;
       existing.orders.add(detail.order_sn);
+    }
+  });
+
+  rawAdjustments.forEach((adj) => {
+    const dateStr = formatReleaseDate(adj.create_time);
+    const existing = groupedStatements.get(dateStr);
+    
+    const amt = parseFloat(adj.amount || "0") || 0;
+
+    if (!existing) {
+      groupedStatements.set(dateStr, {
+        releaseTime: adj.create_time,
+        settlementAmount: amt, // Adjustment affects settlement (net money received)
+        revenueAmount: 0,
+        feeAmount: 0,
+        adjustmentAmount: amt,
+        shippingCostAmount: 0,
+        orders: new Set(),
+      });
+    } else {
+      existing.settlementAmount += amt;
+      existing.adjustmentAmount += amt;
     }
   });
 

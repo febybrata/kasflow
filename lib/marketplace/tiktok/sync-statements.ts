@@ -21,7 +21,7 @@ import type {
 } from "@/lib/types";
 import { fetchAllPages } from "./client";
 import { createTransactionsFromStatement } from "./create-transactions";
-import type { TikTokStatement } from "./types";
+import type { TikTokStatement, TikTokStatementTransaction } from "./types";
 import { uid } from "@/lib/utils";
 
 export type SyncStatementsParams = {
@@ -81,7 +81,7 @@ function convertToStatement(
       ? new Date(tiktokStmt.payment_time * 1000).toISOString()
       : undefined,
     reconciled: false,
-    orderCount: 0,
+    orderCount: (tiktokStmt as any)._calculatedOrderCount || 0,
     approvalStatus: "pending_approval",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -143,6 +143,37 @@ export async function syncStatements(
     extraParams,
     "statements"
   );
+
+  console.log(`[TikTok SyncStatements] Fetched ${tiktokStatements.length} statements. Now fetching transactions to count orders...`);
+
+  // For each statement, fetch its transactions to count unique orders
+  for (const ts of tiktokStatements) {
+    try {
+      const transactions = await fetchAllPages<TikTokStatementTransaction>(
+        `/finance/202309/statements/${ts.id}/statement_transactions`,
+        accessToken,
+        shopCipher,
+        appKey,
+        appSecret,
+        { sort_field: "order_create_time", sort_order: "ASC" },
+        "statement_transactions"
+      );
+      
+      const uniqueOrders = new Set<string>();
+      for (const txn of transactions) {
+        if (txn.type === "ORDER" && txn.order_id) {
+          uniqueOrders.add(txn.order_id);
+        }
+      }
+      (ts as any)._calculatedOrderCount = uniqueOrders.size;
+      console.log(`[TikTok SyncStatements] Statement ${ts.id} has ${uniqueOrders.size} orders`);
+    } catch (err) {
+      console.error(`[TikTok SyncStatements] Failed to fetch transactions for statement ${ts.id}:`, err);
+      (ts as any)._calculatedOrderCount = 0;
+    }
+    // Small delay to prevent rate limit
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
 
   // Convert to KasFlow format
   const allStatements = tiktokStatements.map((ts) =>

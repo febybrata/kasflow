@@ -301,7 +301,7 @@ export default function UtilitiesPage() {
                     notify(
                       "success",
                       `${dummyCount} dummy transactions + journals berhasil dibuat!`,
-                      `Data berhasil disimpan ke database Supabase (company: ${appUser.companyId.slice(0, 8)}…).`,
+                      `Data berhasil disimpan ke Cloud Database (company: ${appUser.companyId.slice(0, 8)}…).`,
                     );
                   } else {
                     // Local only mode - update store langsung
@@ -309,7 +309,7 @@ export default function UtilitiesPage() {
                     notify(
                       "info",
                       `${dummyCount} dummy transactions + journals berhasil dibuat.`,
-                      "Data disimpan secara lokal (tidak login ke Supabase).",
+                      "Data disimpan secara lokal (tidak login ke Cloud).",
                     );
                   }
                 } catch (error) {
@@ -400,7 +400,7 @@ export default function UtilitiesPage() {
                     notify(
                       "success",
                       "Demo company berhasil dibuat!",
-                      `300 transaksi, ${newJournalEntries.length} jurnal, 100 customer, 25 supplier disimpan ke Supabase.`,
+                      `300 transaksi, ${newJournalEntries.length} jurnal, 100 customer, 25 supplier disimpan ke Cloud Database.`,
                     );
                   } else {
                     // Local only mode - update store langsung
@@ -408,7 +408,7 @@ export default function UtilitiesPage() {
                     notify(
                       "info",
                       "Demo company berhasil dibuat.",
-                      "Data disimpan secara lokal (tidak login ke Supabase).",
+                      "Data disimpan secara lokal (tidak login ke Cloud).",
                     );
                   }
                 } catch (error) {

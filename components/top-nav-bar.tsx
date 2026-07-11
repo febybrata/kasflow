@@ -15,6 +15,7 @@ import {
   Package,
   ReceiptText,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Sun,
   User,
@@ -186,7 +187,7 @@ function ProfileMenu({
   dark: boolean;
   onToggleDark: () => void;
 }) {
-  const { logout } = useAuth();
+  const { logout, appUser } = useAuth();
   const profile = useKasFlowStore((s) => s.profile);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -274,6 +275,19 @@ function ProfileMenu({
           })}
         </div>
 
+        {appUser?.email === "ramadhaniahadita@gmail.com" && (
+          <div className="px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 bg-rose-50/50 dark:bg-rose-950/20">
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-bold text-rose-600 dark:text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-all duration-150"
+            >
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+              Super Admin Panel
+            </Link>
+          </div>
+        )}
+
         <div className="px-2 py-2 space-y-0.5">
           <button
             onClick={() => { onToggleDark(); setOpen(false); }}
@@ -306,6 +320,7 @@ function MobileMenu({
   onClose: () => void;
   pathname: string;
 }) {
+  const { appUser } = useAuth();
   return (
     <div
       className={cn(
@@ -414,6 +429,28 @@ function MobileMenu({
               })}
             </div>
           </div>
+
+          {appUser?.email === "ramadhaniahadita@gmail.com" && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 px-4 mb-1.5">
+                <div className="h-px flex-1 bg-rose-200/60 dark:bg-rose-800/40" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-rose-500/70">
+                  Administration
+                </span>
+                <div className="h-px flex-1 bg-rose-200/60 dark:bg-rose-800/40" />
+              </div>
+              <div className="space-y-0.5">
+                <Link
+                  href="/admin"
+                  onClick={onClose}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-500 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-all duration-150"
+                >
+                  <ShieldAlert className="h-5 w-5 shrink-0" />
+                  Super Admin Panel
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

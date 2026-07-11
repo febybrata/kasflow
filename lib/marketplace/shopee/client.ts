@@ -68,6 +68,7 @@ export async function shopeeApiGet<T = any>(
     }
   });
 
+  console.log(`[ShopeeApiGet] Requesting URL: ${url.toString()}`);
   const response = await fetch(url.toString(), {
     method: "GET",
     headers: {

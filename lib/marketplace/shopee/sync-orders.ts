@@ -88,8 +88,8 @@ function convertToOrder(
     platformDiscount: 0,
     totalAmount,
     settlementStatus: "unsettled",
-    settlementAmount: 0,
-    revenueAmount: 0,
+    settlementAmount: totalAmount, // Show nominal value in dashboard
+    revenueAmount: totalAmount,
     feeAmount: 0,
     adjustmentAmount: 0,
     shippingCostAmount: 0,
@@ -119,8 +119,8 @@ function convertToOrderItem(
     productName: shopeeItem.item_name,
     quantity: shopeeItem.model_quantity_purchased || 1,
     unitPrice: parseFloat(shopeeItem.model_discounted_price || shopeeItem.model_original_price || "0") || 0,
-    settlementAmount: 0,
-    revenueAmount: 0,
+    settlementAmount: parseFloat(shopeeItem.model_discounted_price || shopeeItem.model_original_price || "0") || 0,
+    revenueAmount: parseFloat(shopeeItem.model_discounted_price || shopeeItem.model_original_price || "0") || 0,
     rawData: shopeeItem,
     createdAt: new Date().toISOString(),
   };
@@ -150,7 +150,7 @@ async function fetchOrderDetails(
       shopId,
       {
         order_sn_list: batch.join(","),
-        response_optional_fields: "item_list,buyer_user_id,shipping_carrier,buyer_total_amount,estimated_shipping_fee",
+        response_optional_fields: "item_list,buyer_user_id,shipping_carrier,buyer_total_amount,total_amount,estimated_shipping_fee",
       }
     );
 
@@ -182,54 +182,71 @@ export async function syncOrders(params: SyncOrdersParams): Promise<SyncOrdersRe
   } = params;
 
   // Prepare dates (unix timestamp)
-  const timeFrom = startDate
+  const totalTimeFrom = startDate
     ? Math.floor(new Date(`${startDate}T00:00:00+07:00`).getTime() / 1000)
-    : Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000); // default 30 days ago
+    : Math.floor((Date.now() - 14 * 24 * 60 * 60 * 1000) / 1000); // default 14 days ago
   
-  const timeTo = endDate
+  const totalTimeTo = endDate
     ? Math.floor(new Date(`${endDate}T23:59:59+07:00`).getTime() / 1000)
     : Math.floor(Date.now() / 1000);
 
   const orderSns: string[] = [];
-  let cursor = "";
-  let hasMore = true;
+  const CHUNK_SIZE_SECONDS = 14 * 24 * 60 * 60; // 14 days
 
-  // Step 1: Fetch order list (SNs only)
-  while (hasMore) {
-    const extraParams: Record<string, any> = {
-      time_range_field: "create_time",
-      time_from: timeFrom,
-      time_to: timeTo,
-      page_size: 50,
-    };
+  let currentFrom = totalTimeFrom;
 
-    if (cursor) {
-      extraParams.cursor = cursor;
+  // Step 1: Fetch order list (SNs only) chunked by max 14 days
+  while (currentFrom <= totalTimeTo) {
+    let currentTo = currentFrom + CHUNK_SIZE_SECONDS;
+    if (currentTo > totalTimeTo) {
+      currentTo = totalTimeTo;
     }
 
-    const response = await shopeeApiGet<any>(
-      "/api/v2/order/get_order_list",
-      partnerId,
-      partnerKey,
-      accessToken,
-      shopId,
-      extraParams
-    );
+    let cursor = "";
+    let hasMore = true;
 
-    if (response && response.order_list) {
-      response.order_list.forEach((ord: any) => {
-        if (ord.order_sn) {
-          orderSns.push(ord.order_sn);
+    try {
+      while (hasMore) {
+        const extraParams: Record<string, any> = {
+          time_range_field: "create_time",
+          time_from: currentFrom,
+          time_to: currentTo,
+          page_size: 50,
+        };
+
+        if (cursor) {
+          extraParams.cursor = cursor;
         }
-      });
+
+        const response = await shopeeApiGet<any>(
+          "/api/v2/order/get_order_list",
+          partnerId,
+          partnerKey,
+          accessToken,
+          shopId,
+          extraParams
+        );
+
+        if (response && response.order_list) {
+          response.order_list.forEach((ord: any) => {
+            if (ord.order_sn) {
+              orderSns.push(ord.order_sn);
+            }
+          });
+        }
+
+        hasMore = response?.has_more || false;
+        cursor = response?.next_cursor || "";
+
+        if (hasMore) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+    } catch (err) {
+      console.error(`[Shopee SyncOrders] Failed to fetch chunk ${currentFrom} - ${currentTo}, continuing to next chunk:`, err);
     }
 
-    hasMore = response?.has_more || false;
-    cursor = response?.next_cursor || "";
-
-    if (hasMore) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+    currentFrom = currentTo + 1;
   }
 
   console.log(`[Shopee SyncOrders] Total orders listed: ${orderSns.length}`);

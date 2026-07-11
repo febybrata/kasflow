@@ -163,7 +163,7 @@ export async function fetchAllPages<T = any>(
   appKey: string,
   appSecret: string,
   extraParams: TikTokApiParams = {},
-  pageKey: "statements" | "transactions" | "orders" = "statements"
+  pageKey: "statements" | "transactions" | "orders" | "statement_transactions" = "statements"
 ): Promise<T[]> {
   const allResults: T[] = [];
   let pageToken: string | undefined;

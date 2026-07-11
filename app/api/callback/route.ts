@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   if (!code || !state) {
     console.error("[OAuth Callback] Missing code or state");
     // Redirect to integrations page with error instead of JSON
-    return NextResponse.redirect(new URL("/integrations?error=missing_params", request.url));
+    return NextResponse.redirect(new URL("/integrations?error=missing_params", process.env.NEXT_PUBLIC_APP_URL || request.url));
   }
 
   // Extract companyId from state (format: companyId_randomUuid)
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   if (!companyId) {
     console.error("[OAuth Callback] Could not extract companyId from state:", state);
-    return NextResponse.redirect(new URL("/integrations?error=invalid_state", request.url));
+    return NextResponse.redirect(new URL("/integrations?error=invalid_state", process.env.NEXT_PUBLIC_APP_URL || request.url));
   }
 
   console.log("[OAuth Callback] Extracted companyId:", companyId);
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     if (tokenData.code !== 0) {
       console.error("[OAuth Callback] Token exchange failed:", tokenData);
-      return NextResponse.redirect(new URL("/integrations?error=token_exchange_failed", request.url));
+      return NextResponse.redirect(new URL("/integrations?error=token_exchange_failed", process.env.NEXT_PUBLIC_APP_URL || request.url));
     }
 
     const {
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 
       if (createCompanyError) {
         console.error("[OAuth Callback] Failed to create company profile:", createCompanyError);
-        return NextResponse.redirect(new URL("/integrations?error=company_creation_failed", request.url));
+        return NextResponse.redirect(new URL("/integrations?error=company_creation_failed", process.env.NEXT_PUBLIC_APP_URL || request.url));
       }
 
       console.log("[OAuth Callback] Company profile created successfully");
@@ -239,10 +239,10 @@ export async function GET(request: NextRequest) {
 
     // Redirect back to integrations page with success
     console.log("[OAuth Callback] Redirecting to integrations page...");
-    return NextResponse.redirect(new URL("/integrations?connected=true", request.url));
+    return NextResponse.redirect(new URL("/integrations?connected=true", process.env.NEXT_PUBLIC_APP_URL || request.url));
 
   } catch (error) {
     console.error("[OAuth Callback] Error:", error);
-    return NextResponse.redirect(new URL("/integrations?error=internal_error", request.url));
+    return NextResponse.redirect(new URL("/integrations?error=internal_error", process.env.NEXT_PUBLIC_APP_URL || request.url));
   }
 }

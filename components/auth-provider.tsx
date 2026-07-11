@@ -36,9 +36,14 @@ type AuthContextValue = {
     businessName: string,
   ) => Promise<void>;
   logout: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  linkGoogleAccount: () => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+let bootstrapPromise: Promise<any> | null = null;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [supabaseUser, setSupabaseUser] = useState<any | null>(null);
@@ -55,8 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       try {
-        // Use getSession() instead of getUser() - much faster as it reads
-        // from local storage first without blocking network call
+        // With implicit flow, the Supabase client automatically detects
+        // #access_token=... in the URL hash (via detectSessionInUrl: true)
+        // and creates the session. onAuthStateChange will fire SIGNED_IN.
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user ?? null;
 
@@ -114,11 +120,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             // Bootstrap if profile missing
             try {
-              const result = await bootstrapCompanyForUser({
-                uid: user.id,
-                email: user.email ?? null,
-                businessName: user.email?.split("@")[0] ?? "Bisnis Baru",
-              });
+              if (!bootstrapPromise) {
+                bootstrapPromise = bootstrapCompanyForUser({
+                  uid: user.id,
+                  email: user.email ?? null,
+                  businessName: user.email?.split("@")[0] ?? "Bisnis Baru",
+                }).finally(() => { bootstrapPromise = null; });
+              }
+              const result = await bootstrapPromise;
               setAppUser({
                 uid: user.id,
                 email: user.email ?? null,
@@ -133,11 +142,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           // No user profile, bootstrap
           try {
-            const result = await bootstrapCompanyForUser({
-              uid: user.id,
-              email: user.email ?? null,
-              businessName: user.email?.split("@")[0] ?? "Bisnis Baru",
-            });
+            if (!bootstrapPromise) {
+              bootstrapPromise = bootstrapCompanyForUser({
+                uid: user.id,
+                email: user.email ?? null,
+                businessName: user.email?.split("@")[0] ?? "Bisnis Baru",
+              }).finally(() => { bootstrapPromise = null; });
+            }
+            const result = await bootstrapPromise;
             setAppUser({
               uid: user.id,
               email: user.email ?? null,
@@ -169,8 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // On sign in, load profile
+        // On sign in, load profile — set loading=true to prevent the
+        // "Login required" screen from flashing while we fetch/bootstrap.
         if (event === "SIGNED_IN") {
+          setLoading(true);
           try {
             const { data: userProfile, error } = await supabase
               .from("users")
@@ -190,9 +204,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 companyId: userProfile.company_id,
                 role: (userProfile.role ?? "owner") as UserRole,
               });
+            } else {
+              // Bootstrap if missing during onAuthStateChange
+              try {
+                if (!bootstrapPromise) {
+                  bootstrapPromise = bootstrapCompanyForUser({
+                    uid: session.user.id,
+                    email: session.user.email ?? null,
+                    businessName: session.user.email?.split("@")[0] ?? "Bisnis Baru",
+                  }).finally(() => { bootstrapPromise = null; });
+                }
+                const result = await bootstrapPromise;
+                setAppUser({
+                  uid: session.user.id,
+                  email: session.user.email ?? null,
+                  companyId: result.companyId,
+                  role: result.role,
+                });
+              } catch (bootstrapErr) {
+                console.error("Bootstrap error in onAuthStateChange:", formatError(bootstrapErr));
+              }
             }
           } catch (err) {
             console.error("Auth state change error:", err);
+          } finally {
+            setLoading(false);
           }
         }
       },
@@ -246,8 +282,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+    if (error) throw error;
+  };
+
+  const linkGoogleAccount = async () => {
+    const { error } = await supabase.auth.linkIdentity({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+    if (error) throw error;
+  };
+
   const value = useMemo(
-    () => ({ supabaseUser, appUser, loading, login, register, logout }),
+    () => ({ supabaseUser, appUser, loading, login, register, logout, loginWithGoogle, linkGoogleAccount, updatePassword }),
     [supabaseUser, appUser, loading],
   );
 

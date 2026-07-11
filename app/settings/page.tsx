@@ -19,10 +19,10 @@ import { updateBusinessProfile } from "@/lib/supabase/company-service";
 import { toast } from "@/lib/toast";
 import { formatDate } from "@/lib/utils";
 import { useKasFlowStore } from "@/store/use-kasflow-store";
-import { Settings, Shield, HelpCircle, Calendar, Users2, Database, ShieldAlert, Award, Save, Loader2 } from "lucide-react";
+import { Settings, Shield, HelpCircle, Calendar, Users2, Database, ShieldAlert, Award, Save, Loader2, Lock, Link as LinkIcon } from "lucide-react";
 
 export default function SettingsPage() {
-  const { appUser } = useAuth();
+  const { appUser, supabaseUser, linkGoogleAccount, updatePassword } = useAuth();
   const profile = useKasFlowStore((state) => state.profile);
   const updateProfile = useKasFlowStore((state) => state.updateProfile);
   const accountingPeriods = useKasFlowStore((state) => state.accountingPeriods);
@@ -33,6 +33,42 @@ export default function SettingsPage() {
   const [formType, setFormType] = useState(profile.businessType);
   const [formTax, setFormTax] = useState(profile.taxNumber ?? "");
   const [saving, setSaving] = useState(false);
+
+  // Auth State
+  const [newPassword, setNewPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
+
+  const identities = supabaseUser?.identities || [];
+  const hasGoogle = identities.some((id: any) => id.provider === 'google');
+  const hasEmail = identities.some((id: any) => id.provider === 'email');
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password harus minimal 6 karakter.");
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      await updatePassword(newPassword);
+      toast.success("Password berhasil dibuat. Anda sekarang bisa login dengan email.");
+      setNewPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal membuat password");
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    setLinkingGoogle(true);
+    try {
+      await linkGoogleAccount();
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menghubungkan Google");
+      setLinkingGoogle(false);
+    }
+  };
 
   const isDirty =
     formName !== profile.businessName ||
@@ -215,6 +251,81 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Account Security */}
+          <Card className="border-zinc-200/60 dark:border-zinc-800/50 shadow-sm mt-6">
+            <CardHeader className="border-b pb-4 mb-4">
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-emerald-500" /> Keamanan & Akun
+              </CardTitle>
+              <CardDescription>Atur metode otentikasi login Anda.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 mt-2">
+              <div className="grid gap-6 sm:grid-cols-2">
+                {!hasEmail && (
+                  <div className="space-y-3 rounded-xl border p-4 bg-zinc-50/50 dark:bg-zinc-900/50 dark:border-zinc-800">
+                    <div>
+                      <h4 className="text-sm font-semibold mb-1">Buat Password</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Anda saat ini hanya menggunakan Google untuk login. Buat password agar bisa login menggunakan email.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        type="password"
+                        placeholder="Minimal 6 karakter"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                      <Button
+                        onClick={handleUpdatePassword}
+                        disabled={updatingPassword}
+                        className="w-full text-xs h-9 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
+                      >
+                        {updatingPassword ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Lock className="h-3.5 w-3.5 mr-2" />}
+                        Buat Password
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {!hasGoogle && (
+                  <div className="space-y-3 rounded-xl border p-4 bg-zinc-50/50 dark:bg-zinc-900/50 dark:border-zinc-800 flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold mb-1">Hubungkan Google</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Hubungkan akun Google Anda untuk login lebih cepat dengan satu kali klik.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleLinkGoogle}
+                      disabled={linkingGoogle}
+                      variant="outline"
+                      className="w-full text-xs h-9"
+                    >
+                      {linkingGoogle ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <LinkIcon className="h-3.5 w-3.5 mr-2" />}
+                      Hubungkan ke Google
+                    </Button>
+                  </div>
+                )}
+                
+                {hasGoogle && hasEmail && (
+                  <div className="sm:col-span-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 flex items-center gap-3">
+                    <div className="bg-emerald-500/10 p-2 rounded-full">
+                      <Shield className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Keamanan Maksimal</h4>
+                      <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
+                        Akun Anda telah dihubungkan dengan Google dan Password. Anda bebas masuk menggunakan metode manapun yang Anda suka.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right column: Status Integration & Setup Tools */}
@@ -223,21 +334,21 @@ export default function SettingsPage() {
           <Card className="border-zinc-200/60 dark:border-zinc-800/50 shadow-sm">
             <CardHeader className="border-b pb-4 mb-4">
               <CardTitle className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-emerald-500" /> Integrasi Cloud Server
+                <Database className="h-4 w-4 text-emerald-500" /> <span className="text-sm font-semibold">Status Sinkronisasi Cloud</span>
               </CardTitle>
-              <CardDescription>Sinkronisasi data ke cloud server Supabase.</CardDescription>
+              <CardDescription>Sinkronisasi data ke cloud server.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 mt-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground uppercase">Status Koneksi:</span>
                 <Badge tone={isSupabaseConfigured ? "green" : "yellow"}>
-                  {isSupabaseConfigured ? "Supabase Active" : "Local Database"}
+                  {isSupabaseConfigured ? "Cloud Active" : "Local Database"}
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 {isSupabaseConfigured
-                  ? "Seluruh data transaksi dan jurnal tersimpan dengan aman pada database PostgreSQL Supabase terenkripsi."
-                  : "Anda berjalan pada mode local storage. Harap konfigurasikan file env jika ingin menggunakan server cloud."}
+                  ? "Seluruh data transaksi dan jurnal tersimpan dengan aman pada database PostgreSQL Cloud terenkripsi."
+                  : "Data Anda saat ini hanya tersimpan di memori lokal browser. Konfigurasi Cloud belum terdeteksi."}
               </p>
             </CardContent>
           </Card>

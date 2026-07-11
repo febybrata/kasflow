@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
     console.log("[OAuth Callback] Connection created successfully:", connectionId);
 
     // Redirect to integration page
-    const redirectUrl = new URL("/integrations", request.nextUrl.origin);
+    const redirectUrl = new URL("/integrations", process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin);
     redirectUrl.searchParams.append("success", "true");
     redirectUrl.searchParams.append("connectionId", connectionId);
 

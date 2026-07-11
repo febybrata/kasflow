@@ -78,7 +78,7 @@ function getSyncStartDate(
   }
 
   if (mode === "full" || mode === "backfill" || !connection.lastSyncAt) {
-    return connection.syncStartDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    return connection.syncStartDate || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   }
 
   return undefined;

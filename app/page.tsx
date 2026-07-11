@@ -173,6 +173,12 @@ export default function DashboardPage() {
     [journalEntries, accounts, activeFrom, activeTo],
   );
 
+  const currentHour = new Date().getHours();
+  let greeting = "Selamat malam";
+  if (currentHour >= 5 && currentHour < 11) greeting = "Selamat pagi";
+  else if (currentHour >= 11 && currentHour < 15) greeting = "Selamat siang";
+  else if (currentHour >= 15 && currentHour < 18) greeting = "Selamat sore";
+
   // Show loading state while journal entries are being loaded
   if (!journalEntriesLoaded) {
     return (
@@ -201,10 +207,10 @@ export default function DashboardPage() {
             </span>
           </div>
           <h2 className="mt-2 text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
-            Selamat datang, {profile.ownerName || "Rekan"}
+            {greeting}, {profile.ownerName || "Rekan"}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Berikut ringkasan ledger keuangan bisnis <span className="font-semibold text-foreground">{profile.businessName}</span> hari ini.
+            Cek ringkasan arus kas dan performa <span className="font-semibold text-foreground">{profile.businessName}</span> hari ini.
           </p>
         </div>
 
