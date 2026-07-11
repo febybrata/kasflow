@@ -13,6 +13,8 @@ Aplikasi pembukuan keuangan UMKM berbasis **Ledger-First Accounting** dengan dou
 - **Period Closing** - Tutup buku dengan penguncian jurnal
 - **Audit Trail** - Log aktivitas lengkap untuk setiap transaksi
 - **Soft Delete & Restore** - Data tidak dihapus permanen, bisa dipulihkan
+- **Super Admin Dashboard** - Manajemen tenant, user, dan kontrol akses secara terpusat
+- **Marketplace Integrations** - Integrasi Open Platform (Shopee v2 & TikTok Shop) untuk sinkronisasi pesanan/transaksi otomatis
 - **Dark Mode** - Tampilan gelap untuk kenyamanan mata
 - **Responsive Design** - Tampilan optimal di desktop dan mobile
 
@@ -95,11 +97,16 @@ Buka [http://localhost:3000](http://localhost:3000) di browser.
 - **Neraca**: Aset = Kewajiban + Ekuitas
 - **Arus Kas**: Aliran kas masuk dan keluar
 
-### Utilitas
+### Utilitas & Admin
 - **Generate Dummy Data**: Buat data contoh untuk testing
 - **Seed Demo Company**: Buat perusahaan demo lengkap
 - **Backup & Restore**: Export/import data dalam format JSON
 - **Recycle Bin**: Pulihkan data yang sudah dihapus
+- **Super Admin**: Akses dashboard `/admin` untuk manajemen seluruh tenant (perusahaan) dan user.
+
+### Integrasi Marketplace
+- **Shopee & TikTok Shop**: Hubungkan toko Anda melalui integrasi resmi (OAuth)
+- **Auto Sync**: Sinkronisasi data order, pembayaran, dan potongan biaya (fee) secara otomatis ke dalam jurnal akuntansi.
 
 ## 🗄️ Database Schema
 
@@ -117,8 +124,9 @@ Aplikasi ini menggunakan 12 tabel utama:
 10. **tax_settings** - Pengaturan pajak
 11. **accounting_periods** - Periode akuntansi
 12. **audit_logs** - Log aktivitas
+- *(Dan tambahan tabel-tabel marketplace untuk menyimpan koneksi API, log sinkronisasi Shopee/TikTok, dll).*
 
-Semua tabel dilindungi dengan Row Level Security (RLS) untuk memastikan data isolation antar perusahaan.
+Semua tabel dilindungi dengan Row Level Security (RLS) untuk memastikan data isolation antar perusahaan (tenant).
 
 ## 🔐 Keamanan
 
