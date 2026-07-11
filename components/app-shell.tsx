@@ -34,6 +34,32 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [loading, hasCachedData]);
 
+  // OAuth transition: when the callback page redirects to "/" after a
+  // successful Google OAuth, it sets a sessionStorage flag.  While that
+  // flag is active we show "Memverifikasi akun..." instead of the
+  // "Login required" modal — preventing the ugly flash during the
+  // brief window where loading=false and appUser is still null.
+  const [oauthTransition, setOauthTransition] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("oauth_in_progress")) {
+      setOauthTransition(true);
+    }
+  }, []);
+  useEffect(() => {
+    if (!oauthTransition) return;
+    // Clear the flag as soon as we have a user, or after 5 seconds.
+    if (appUser) {
+      sessionStorage.removeItem("oauth_in_progress");
+      setOauthTransition(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      sessionStorage.removeItem("oauth_in_progress");
+      setOauthTransition(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [oauthTransition, appUser]);
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
@@ -42,13 +68,28 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  // During OAuth transition, show a verification spinner instead of
+  // the "Login required" modal.  This covers the gap between
+  // initAuth() finishing with no session and onAuthStateChange firing
+  // SIGNED_IN.
+  if (oauthTransition && !appUser) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] text-zinc-900">
+        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200/80 bg-white/60 px-5 py-4 shadow-xl backdrop-blur-xl">
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+          <span className="text-sm font-bold tracking-wide text-zinc-700">Memverifikasi akun...</span>
+        </div>
+      </main>
+    );
+  }
+
   if (loading && !hasCachedData) {
     if (!showSpinner) return null;
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        <div className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4 shadow-soft">
-          <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
-          <span className="text-sm font-medium tracking-wide">Memuat sesi...</span>
+      <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] text-zinc-900">
+        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200/80 bg-white/60 px-5 py-4 shadow-xl backdrop-blur-xl">
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+          <span className="text-sm font-bold tracking-wide text-zinc-700">Memuat sesi...</span>
         </div>
       </main>
     );
@@ -56,19 +97,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!isSupabaseConfigured || !appUser) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 text-white">
-        <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-center shadow-soft backdrop-blur-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+      <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] p-4 text-zinc-900">
+        <div className="w-full max-w-md rounded-[2.5rem] border border-zinc-200/80 bg-white/80 p-8 text-center shadow-[0_20px_80px_-15px_rgba(0,0,0,0.1)] backdrop-blur-2xl">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
             <FileText className="h-6 w-6" />
           </div>
-          <h1 className="mt-6 text-2xl font-bold tracking-tight">KasFlow</h1>
-          <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
-            Login diperlukan agar data bisnis tersimpan dan tersinkron ke
-            Supabase secara aman.
+          <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-zinc-950">KasFlow</h1>
+          <p className="mt-3 text-sm text-zinc-600 font-medium leading-relaxed">
+            Silakan masuk ke akun Anda untuk memulai pembukuan otomatis dan memantau arus kas bisnis dengan aman di cloud.
           </p>
           <Link href="/auth" className="mt-6 inline-flex w-full">
-            <Button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white">
-              Login / Register
+            <Button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[13px] tracking-widest h-12 rounded-xl shadow-[0_8px_20px_-4px_rgba(16,185,129,0.4)] hover:shadow-[0_12px_25px_-4px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 transition-all duration-300">
+              MASUK / DAFTAR
             </Button>
           </Link>
         </div>
