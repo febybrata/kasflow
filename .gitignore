@@ -14,3 +14,6 @@ dist
 .qoder
 .agents
 skills-lock.json
+
+# Reference documents
+reff/
