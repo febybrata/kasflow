@@ -1,1 +1,0 @@
-Next.js App Router Route Handlers + `@supabase/supabase-js` service-role client; Shopee Partner API accessed via `@/lib/marketplace/shopee/client.shopeeApiGet`; accounting backed by double-entry journal generation in `@/lib/accounting.generateJournalFromTransaction`.

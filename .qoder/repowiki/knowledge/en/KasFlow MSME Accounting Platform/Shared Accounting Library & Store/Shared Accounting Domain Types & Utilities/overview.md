@@ -1,1 +1,0 @@
-Common TypeScript types, Indonesian locale formatting helpers, and Zod schemas shared across the accounting application.

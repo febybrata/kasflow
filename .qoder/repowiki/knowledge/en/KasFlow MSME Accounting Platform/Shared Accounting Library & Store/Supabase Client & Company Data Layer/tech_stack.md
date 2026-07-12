@@ -1,1 +1,0 @@
-Supabase JS client via `@supabase/ssr` `createBrowserClient` with implicit OAuth flow; Supabase Realtime `postgres_changes` channels scoped per `company_id`; Zustand store `useKasFlowStore` as the UI state sink.

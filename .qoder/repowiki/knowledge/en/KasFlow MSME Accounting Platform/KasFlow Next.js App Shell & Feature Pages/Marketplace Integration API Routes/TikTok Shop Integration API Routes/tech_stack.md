@@ -1,1 +1,0 @@
-Next.js App Router Route Handlers + `@supabase/supabase-js` service-role client against a PostgreSQL-backed Supabase database; TikTok Shop Open API accessed via HTTP from helper modules in `@/lib/marketplace/tiktok/auth` and `sync-engine`.

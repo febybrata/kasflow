@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: reference_docs
-title: Project Reference Documentation & Schema Artifacts
-scope:
-    - docs/
-    - reff/
-source_files: []
-depends_on: []
-related_to: []

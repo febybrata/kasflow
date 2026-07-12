@@ -1,9 +1,0 @@
-Single-file leaf module organized by concern:
-- `types.ts` — shared Shopee DTOs (`ShopeeTokenResponse`, `ShopeeShopInfo`, `ShopeeIncomeDetail`, `ShopeeOrder`, `ShopeeApiResponse<T>`).
-- `client.ts` — HTTP transport: HMAC-SHA256 signature builder (`generateSign`) plus generic `shopeeApiGet`/`shopeeApiPost` helpers that build the partner_id/timestamp/sign query string and unwrap `{ response }` payloads; base URL switches via `SHOPEE_IS_SANDBOX`.
-- `auth.ts` — OAuth flow: builds the `/api/v2/shop/auth_partner` redirect (with a special sandbox path), exchanges auth codes and refresh tokens via `shopeeApiPost`, and exposes `shouldRefreshToken` (30-minute pre-expiry window). Uses dynamic `import("./client")` to avoid circular imports.
-- `sync-statements.ts` / `sync-orders.ts` — stage-level syncers that call client methods and return normalized `MarketplaceStatement[]` / `MarketplaceOrder[]` plus counts.
-- `create-transactions.ts` — idempotent mapper from a settled statement into up to three KasFlow `Transaction`s (INCOME revenue+positive adjustment, EXPENSE fee+negative adjustment, optional TRANSFER payout) resolved through `MarketplaceAccountMapping` + `Category` + `CashAccount` lookups with typed fallbacks.
-- `sync-engine.ts` — top-level orchestrator `runSync(SyncEngineParams)` that runs Stage 1 (statements → transactions) then Stage 2 (orders analytics cache), aggregates per-stage fetched/created/updated counters, records partial vs full error status, and produces a `MarketplaceSyncLog` via `createSyncLogFromResult`.
-
-Dependency direction is strictly inward: sync-engine → sync-statements/sync-orders → client/auth → types. No database or ORM access lives here — persistence is handled by callers.

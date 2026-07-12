@@ -1,6 +1,0 @@
-- Every table query filters by `company_id` (and often `deleted_at IS NULL`) so rows are always tenant-scoped at the SQL level.
-- Read paths return application camelCase objects via a `snakeToCamel` helper; write paths serialize inputs with `camelToSnake` before `.insert()` / `.update()`.
-- New entity IDs are generated client-side with a domain prefix (`customer_`, `supplier_`, `acc_`, `cat_`, `ca_`, `tx_`, `period_`, `audit_`) combined with `Date.now()` rather than relying on DB sequences.
-- Soft deletes use a `deleted_at` timestamp column paired with `restore*` functions that clear it, instead of hard deletes for core entities (customers, suppliers, transactions).
-- All mutations record an `audit_logs` row via `addAuditLog(companyId, action, module, details)` immediately after the successful write.
-- Realtime subscriptions are created once per `companyId` on a single `supabase.channel('kasflow-sync-${companyId}')` instance, with each table registered under its own `postgres_changes` listener.

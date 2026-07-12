@@ -1,1 +1,0 @@
-Next.js Route Handlers exposing TikTok Shop OAuth, connection management, statement/order sync, and manual approval workflows backed by Supabase.

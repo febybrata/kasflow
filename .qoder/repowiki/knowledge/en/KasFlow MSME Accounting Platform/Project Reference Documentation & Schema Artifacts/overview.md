@@ -1,1 +1,0 @@
-Curated product requirements, implementation plans, and Supabase schema artifacts that define KasFlow's ledger-first architecture and marketplace integration design.

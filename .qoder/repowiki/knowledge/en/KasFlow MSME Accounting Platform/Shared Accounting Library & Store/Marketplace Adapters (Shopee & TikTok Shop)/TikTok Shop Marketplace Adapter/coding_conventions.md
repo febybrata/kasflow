@@ -1,5 +1,0 @@
-- Every public API function returns a strongly-typed result object (e.g. `SyncStatementsResult`, `SyncOrdersResult`, `CreateTransactionResult`) rather than mutating inputs or returning loose tuples.
-- HTTP helpers wrap every call with uniform error handling: throw on non-`response.ok` and on `result.code !== 0`, surfacing `TikTok API Error <code>: <message>` strings consumed by `isRetryableError`.
-- OAuth endpoints use `AUTH_DOMAIN = https://auth.tiktok-shops.com` and plain `URLSearchParams` without signing, while all signed endpoints route through `tiktokApiGet`/`tiktokApiPost` which inject `app_key`, `shop_cipher`, `timestamp`, and `sign`.
-- Pagination is centralized in `fetchAllPages`, which loops until `next_page_token` is absent, defaults `page_size` to 100, and inserts a 100ms delay between pages to respect rate limits.
-- Per-stage sync functions are wrapped in try/catch inside `runSync`, pushing `{ stage, message }` entries into an `errors` array and downgrading status to `partial` instead of throwing.

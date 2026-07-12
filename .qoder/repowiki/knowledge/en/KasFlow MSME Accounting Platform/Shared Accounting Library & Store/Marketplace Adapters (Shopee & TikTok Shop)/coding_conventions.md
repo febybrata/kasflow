@@ -1,5 +1,0 @@
-- Every adapter mirrors the same file layout: `types.ts`, `auth.ts`, `client.ts`, `sync-engine.ts`, `sync-orders.ts`, `sync-statements.ts`, plus `create-transactions.ts` for KasFlow write-back.
-- Sync stages are wrapped in try/catch blocks inside `runSync`, pushing `{ stage, message }` entries into a shared `errors[]` array and downgrading status to `partial` rather than aborting.
-- `getSyncStartDate` resolves the effective date window using the same priority: explicit `startDate` > `incremental` + `connection.lastSyncAt` > `full`/`backfill` fallback to `connection.syncStartDate` or N days ago.
-- All HTTP responses are typed through a generic `XxxApiResponse<T>` envelope (`error/message/request_id/response` for Shopee, `code/message/data/request_id` for TikTok) consumed uniformly by `client.ts`.
-- KasFlow transaction creation is isolated in `create-transactions.ts` and invoked only from `sync-statements.ts`, keeping statement-to-ledger mapping separate from pagination logic.

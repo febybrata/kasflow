@@ -1,1 +1,0 @@
-Next.js 15 App Router with TypeScript (bundler module resolution), Tailwind CSS 3 + PostCSS, Supabase JS client + SSR helper, TanStack React Query for data fetching, Zustand for global state, Zod for validation, and ExcelJS/xlsx/jspdf for report generation — all declared once in the root `package.json` and shared across every child.

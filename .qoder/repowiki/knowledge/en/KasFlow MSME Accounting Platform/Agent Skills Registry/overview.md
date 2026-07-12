@@ -1,1 +1,0 @@
-Declares the .agents/skills directory as a leaf module scope; no source files are present in this workspace snapshot.

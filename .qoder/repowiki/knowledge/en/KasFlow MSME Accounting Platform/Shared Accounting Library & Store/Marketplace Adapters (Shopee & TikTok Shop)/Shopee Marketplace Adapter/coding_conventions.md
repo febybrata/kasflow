@@ -1,5 +1,0 @@
-- Base URL selection is centralized in a local `getBaseUrl()` helper that reads `process.env.SHOPEE_IS_SANDBOX === "true"`, duplicated in both `client.ts` and `auth.ts`.
-- Every outgoing request is signed by concatenating `partnerId + apiPath + timestamp` (plus `access_token` and `shop_id` for shop-scoped endpoints) and appending `sign` as a query parameter.
-- API responses are unwrapped by returning `result.response !== undefined ? result.response : result`, so callers receive the inner payload directly rather than the envelope.
-- Stage-level functions return typed result objects with separate `fetched` / `created` / `updated` counters instead of mutating caller state.
-- Optional dependencies like `./client` are loaded via `await import("./client")` inside async functions to break the `auth.ts` ↔ `client.ts` cycle.

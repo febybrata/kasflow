@@ -1,1 +1,0 @@
-Next.js Route Handlers under app/api that expose OAuth, connection management, and sync endpoints for TikTok Shop and Shopee integrations backed by Supabase.

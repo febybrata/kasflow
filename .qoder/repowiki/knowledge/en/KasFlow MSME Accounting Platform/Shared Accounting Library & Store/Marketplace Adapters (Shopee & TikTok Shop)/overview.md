@@ -1,1 +1,0 @@
-Pluggable marketplace adapters that authenticate sellers, paginate orders and settlement statements from each platform's Open API, and convert them into KasFlow income/expense transactions.

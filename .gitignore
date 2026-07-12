@@ -9,3 +9,8 @@ dist
 *.csv
 .vercel
 .env
+
+# AI Agent / Local tools
+.qoder
+.agents
+skills-lock.json

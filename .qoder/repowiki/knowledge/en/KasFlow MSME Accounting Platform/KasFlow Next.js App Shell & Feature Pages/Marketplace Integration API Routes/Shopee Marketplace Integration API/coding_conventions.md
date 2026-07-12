@@ -1,5 +1,0 @@
-- Each route file opens with a block-comment header describing its purpose, followed by a top-level `export async function POST|GET(request)` handler returning `NextResponse.json` or `NextResponse.redirect`.
-- Supabase reads/writes use snake_case column names while domain objects are camelCase; a local `snakeToCamel` / `camelToSnake` helper bridges the two at the boundary between route handlers and business logic.
-- Error paths consistently return `{ error, details? }` JSON with explicit HTTP status codes (400 for validation, 401 for expired tokens, 404 for missing resources, 500 for server errors).
-- All Shopee partner credentials are read from environment variables (`SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `NEXT_PUBLIC_APP_URL`) at module scope rather than passed as arguments.
-- Long-running operations (sync, approve) log progress with a `[Shopee <Feature>]` prefix and record outcomes in `marketplace_sync_logs` so callers can poll completion.

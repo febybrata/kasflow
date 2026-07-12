@@ -1,2 +1,0 @@
-- Domain types live in `lib/types.ts` and are imported via relative path from every child (`../types`) rather than re-exported through a barrel, keeping each file self-contained.
-- Memoized variants of expensive accounting helpers are kept alongside originals under the same filename suffix `-memoized.ts` and exported from the same module.

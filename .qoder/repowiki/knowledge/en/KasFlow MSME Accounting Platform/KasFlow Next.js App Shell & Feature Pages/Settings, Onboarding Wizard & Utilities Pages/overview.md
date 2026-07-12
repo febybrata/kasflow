@@ -1,1 +1,0 @@
-Next.js App Router pages for system settings, the 3-step business onboarding wizard, and developer utilities (seed, backup/restore, recycle bin).

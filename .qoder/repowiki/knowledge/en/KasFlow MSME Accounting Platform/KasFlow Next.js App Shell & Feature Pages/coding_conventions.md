@@ -1,4 +1,0 @@
-- Every page file starts with the `'use client'` directive because the root layout forces dynamic rendering and pages rely on browser-only APIs (localStorage, Supabase client).
-- All UI state and cross-page data comes from the shared Zustand store (`use-kasflow-store`) rather than per-page state or server props.
-- Recharts charts are always rendered inside the `ClientOnlyChart` wrapper to avoid SSR hydration mismatches.
-- Feature areas are organized as one Next.js route segment per domain, each exposing a single `page.tsx` client component.

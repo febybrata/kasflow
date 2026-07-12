@@ -1,6 +1,0 @@
-- Every route file reads `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `process.env` at the top and constructs a service-role Supabase client per request.
-- Request validation returns `NextResponse.json({ error: '...' }, { status: 400 })` for missing/invalid parameters before any DB work.
-- DB rows are snake_case while domain types are camelCase; routes explicitly map between them (e.g. `snakeToCamel`, inline destructuring like `connection_id → connectionId`) before passing to lib helpers.
-- Error paths consistently wrap errors in `{ error, details?: string }` JSON and log with a bracketed tag prefix like `[OAuth Callback]`, `[Approve]`, `[Sync]`.
-- Stateful mutations (approve/reject/sync) record an idempotent identifier via `uid('mkp_...')` and persist audit fields (`created_at`, `updated_at`, `approved_by`, `approved_at`).
-- Read endpoints accept `companyId` as a required query parameter and scope every Supabase query with `.eq('company_id', companyId)` to enforce multi-tenant isolation.

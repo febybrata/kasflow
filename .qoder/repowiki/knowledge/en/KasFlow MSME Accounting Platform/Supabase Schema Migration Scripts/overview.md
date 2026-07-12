@@ -1,1 +1,0 @@
-Date-stamped SQL migrations that evolve the Supabase Postgres schema for approval workflows, capital transactions, and PMSAK/SAK EMKM-compliant chart-of-accounts structure.

@@ -1,1 +1,0 @@
-Next.js App Router root that wires the client-only shell, providers, and feature pages (dashboard, finance, settings, onboarding) while exposing marketplace integration API routes.

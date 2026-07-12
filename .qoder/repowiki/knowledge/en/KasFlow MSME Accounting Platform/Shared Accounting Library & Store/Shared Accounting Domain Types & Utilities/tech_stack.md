@@ -1,1 +1,0 @@
-Zod v3 for schema validation (with `superRefine` for cross-field rules), clsx + tailwind-merge for Tailwind class composition, and native `Intl.NumberFormat` / `Intl.DateTimeFormat` with `id-ID` locale for currency/date formatting.

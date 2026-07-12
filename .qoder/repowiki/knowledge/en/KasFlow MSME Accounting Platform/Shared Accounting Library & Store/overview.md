@@ -1,1 +1,0 @@
-Aggregates the shared TypeScript library (domain types, Supabase client, marketplace adapters, utilities) and the global Kasflow Zustand store consumed by all application layers.

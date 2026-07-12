@@ -1,1 +1,0 @@
-The module scope is an empty .agents/skills/ directory with no files or sub-packages, so there is no internal layering, interface boundaries, or dependency direction to document.

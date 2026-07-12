@@ -1,9 +1,0 @@
-Flat leaf module with a clear layering:
-- `auth.ts` — OAuth flow helpers (`generateAuthUrl`, `exchangeAuthCode`, `refreshAccessToken`, `getAuthorizedShops`) against `https://auth.tiktok-shops.com`; no signature needed.
-- `client.ts` — HTTP transport to `https://open-api.tiktokglobalshop.com`: HMAC-SHA256 signing via `generateSign`, typed `tiktokApiGet`/`tiktokApiPost` wrappers, `fetchAllPages` pagination loop (page_size=100, 100ms backoff), plus `isRetryableError` / `TIKTOK_ERROR_CODES`. All signed endpoints go through these helpers; OAuth endpoints bypass them.
-- `types.ts` — canonical request/response shapes (`TikTokStatement`, `TikTokOrder`, `TikTokUnsettledTransaction`, `TikTokPaginatedResponse<T>`, `TikTokApiResponse<T>`).
-- Sync stage files (`sync-statements.ts`, `sync-orders.ts`, `sync-unsettled.ts`, `sync-settlement.ts`) each export a single `syncXxx(params)` function returning a typed result object consumed by the orchestrator.
-- `sync-engine.ts` — `runSync()` orchestrator that runs stages 1→3 (statements → orders → unsettled) in sequence, catches per-stage errors without aborting, aggregates counts, and exposes `createSyncLogFromResult` for DB persistence. It imports shared domain types from `@/lib/types` and uses `uid` from `@/lib/utils`.
-- `create-transactions.ts` — pure mapping function `createTransactionsFromStatement` that turns one settled statement into up to three KasFlow transactions (income, expense, transfer) using account/category mappings; idempotent when statement links are NULL.
-
-Dependency direction: sync stages → client/auth/types; sync-engine → sync stages + create-transactions; nothing inside this folder is imported by other marketplace adapters, keeping it self-contained.

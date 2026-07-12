@@ -1,3 +1,0 @@
-- Marketplace DDL uses TEXT primary keys with `company_id TEXT REFERENCES business_profiles(id)` and RLS via `auth_user_company_id()`, mirroring the existing core schema rather than introducing UUIDs.
-- All marketplace tables include `created_at`, `updated_at`, and optional `deleted_at` timestamps plus a `UNIQUE(company_id, platform_key)` constraint to enforce per-company isolation.
-- Status fields are constrained via CHECK enums (e.g. `status IN ('active','disconnected','expired','error')`, `sync_status IN ('pending','synced','error','skipped')`) instead of free-text flags.

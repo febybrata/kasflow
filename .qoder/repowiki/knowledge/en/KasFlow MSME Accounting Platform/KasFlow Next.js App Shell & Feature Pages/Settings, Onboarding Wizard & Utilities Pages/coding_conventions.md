@@ -1,5 +1,0 @@
-- Each route file exports a single default function component named `<XxxPage>` and begins with the `"use client"` directive.
-- User identity is obtained via `const { appUser } = useAuth()` and persisted writes branch on `if (appUser)` to call Supabase services; otherwise operations fall back to local Zustand store mutations.
-- All user-facing feedback uses the centralized `toast` helper (`toast.success`, `toast.error`, `toast.info`) rather than browser alerts or ad-hoc notifications.
-- Form fields bind directly to Zustand store slices via selectors (e.g. `profile.businessName`, `cashAccounts[0]?.accountId`) instead of maintaining separate server-synced copies.
-- Async actions wrap their body in try/catch/finally with a dedicated loading state variable (e.g. `saving`, `generateLoading`, `seedLoading`) toggled around the operation and cleared in `finally`.

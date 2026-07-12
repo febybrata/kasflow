@@ -1,1 +1,0 @@
-Shopee Open API v2 adapter that authenticates sellers, fetches orders and payout statements, and converts them into KasFlow transactions.

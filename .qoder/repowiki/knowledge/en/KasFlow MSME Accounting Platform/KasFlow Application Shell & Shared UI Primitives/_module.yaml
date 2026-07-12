@@ -1,9 +1,0 @@
-schema_version: 1
-module_path: ui_components
-title: KasFlow Application Shell & Shared UI Primitives
-scope:
-    - components/
-    - hooks/
-source_files: []
-depends_on: []
-related_to: []

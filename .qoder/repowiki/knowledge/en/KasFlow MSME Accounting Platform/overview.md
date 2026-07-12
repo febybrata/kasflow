@@ -1,1 +1,0 @@
-Monorepo root for KasFlow, a Next.js ledger-first accounting app for Indonesian MSMEs that wires the App Router shell, shared domain library, Supabase migrations, and one-off data scripts around a single `package.json`.

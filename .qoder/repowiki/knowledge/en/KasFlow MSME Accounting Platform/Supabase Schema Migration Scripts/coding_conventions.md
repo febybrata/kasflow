@@ -1,4 +1,0 @@
-- Each migration file begins with a three-line header comment stating Migration name, Date, and Description.
-- Schema changes use `ADD COLUMN IF NOT EXISTS` / `DROP CONSTRAINT IF EXISTS` so migrations are safe to re-run without failing on duplicate objects.
-- Per-company seed data is inserted by joining `business_profiles bp` with a `WHERE NOT EXISTS` guard against the target table to avoid duplicates across tenants.
-- Enumerated values are enforced with inline `CHECK (...) IN (...)` constraints on new TEXT columns (approval_status, type, capital_type, neraca_section) rather than lookup tables.
