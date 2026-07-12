@@ -23,7 +23,18 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
-    const state = searchParams.get("state");
+    const stateParam = searchParams.get("state");
+    let state = stateParam;
+    try {
+      if (stateParam) {
+        const decoded = JSON.parse(Buffer.from(stateParam, "base64").toString("utf-8"));
+        if (decoded && decoded.originalState) {
+          state = decoded.originalState;
+        }
+      }
+    } catch (e) {
+      // Fallback to stateParam if not Base64 encoded JSON
+    }
 
     if (!code || !state) {
       return NextResponse.json(

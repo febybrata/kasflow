@@ -21,7 +21,18 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
     const shopIdStr = searchParams.get("shop_id");
-    const companyId = searchParams.get("state"); // companyId was embedded as state
+    const stateParam = searchParams.get("state");
+    let companyId = stateParam;
+    try {
+      if (stateParam) {
+        const decoded = JSON.parse(Buffer.from(stateParam, "base64").toString("utf-8"));
+        if (decoded && decoded.originalState) {
+          companyId = decoded.originalState;
+        }
+      }
+    } catch (e) {
+      // Fallback to stateParam if not Base64 encoded JSON
+    }
 
     if (!code || !shopIdStr || !companyId) {
       return NextResponse.json(

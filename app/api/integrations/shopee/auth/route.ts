@@ -29,8 +29,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Embed companyId in the redirect query parameter by adding it as state
-    const customRedirectUri = `${redirectUri}?state=${companyId}`;
+    // Use Centralized Auth Broker
+    const targetObj = { target: process.env.NEXT_PUBLIC_APP_URL, originalState: companyId };
+    const stateBase64 = Buffer.from(JSON.stringify(targetObj)).toString("base64");
+    const authBrokerUrl = "https://auth.bakwan.my.id/api/integrations/shopee/callback";
+
+    // Embed the stateBase64 in the redirect query parameter by adding it as state
+    const customRedirectUri = `${authBrokerUrl}?state=${stateBase64}`;
 
     // Build Shopee OAuth URL
     const authUrl = generateAuthUrl({

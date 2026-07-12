@@ -26,8 +26,13 @@ export async function POST(request: NextRequest) {
     // Build TikTok OAuth URL
     const authUrl = new URL("https://auth.tiktok-shops.com/oauth/authorize");
     authUrl.searchParams.append("app_key", tiktokAppKey);
-    authUrl.searchParams.append("state", state);
-    authUrl.searchParams.append("redirect_uri", redirectUri);
+    // Use Centralized Auth Broker
+    const targetObj = { target: process.env.NEXT_PUBLIC_APP_URL, originalState: state };
+    const stateBase64 = Buffer.from(JSON.stringify(targetObj)).toString("base64");
+    const authBrokerUrl = "https://auth.bakwan.my.id/api/callback";
+
+    authUrl.searchParams.append("state", stateBase64);
+    authUrl.searchParams.append("redirect_uri", authBrokerUrl);
 
     console.log("[OAuth] Redirecting to:", authUrl.toString());
 
