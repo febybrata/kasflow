@@ -23,15 +23,6 @@ BEGIN
 END;
 $$;
 
--- RLS helper: resolve company_id from the current auth user
-CREATE OR REPLACE FUNCTION auth_user_company_id()
-RETURNS TEXT
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT company_id FROM users WHERE uid = auth.uid() LIMIT 1;
-$$;
 
 -- ============================================================
 -- 1. BUSINESS PROFILES
@@ -68,6 +59,20 @@ CREATE INDEX idx_users_company_id ON users(company_id);
 
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- RLS HELPER FUNCTION
+-- ============================================================
+-- This must be declared after the users table exists
+CREATE OR REPLACE FUNCTION auth_user_company_id()
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT company_id FROM users WHERE uid = auth.uid() LIMIT 1;
+$$;
+
 
 -- ============================================================
 -- 3. ACCOUNTS (Chart of Accounts — COA)
