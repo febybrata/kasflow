@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
           shopId
         );
 
-        const tokenExpiresAt = new Date(Date.now() + (tokenData.expire_in || 14400) * 1000).toISOString();
+        const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         const refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
         // Update connection with new tokens

@@ -124,10 +124,8 @@ export async function GET(request: NextRequest) {
         seller_type: shop.seller_type,
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
-        token_expires_at: unixTimestampToISO(tokenData.access_token_expire_in),
-        refresh_token_expires_at: unixTimestampToISO(
-          tokenData.refresh_token_expire_in
-        ),
+        token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        refresh_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         status: "active",
         created_at: now,
         updated_at: now,

@@ -83,8 +83,21 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (loading && !hasCachedData) {
+  if (loading) {
     if (!showSpinner) return null;
+    
+    if (hasCachedData) {
+      return (
+        <div className="min-h-screen bg-background">
+          <TopNavBar dark={dark} onToggleDark={() => setDark(!dark)} />
+          <main className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8 pb-24 lg:pb-8 flex justify-center items-center min-h-[60vh]">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-500/40" />
+          </main>
+          <BottomTabBar />
+        </div>
+      );
+    }
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] text-zinc-900">
         <div className="flex items-center gap-3 rounded-2xl border border-zinc-200/80 bg-white/60 px-5 py-4 shadow-xl backdrop-blur-xl">

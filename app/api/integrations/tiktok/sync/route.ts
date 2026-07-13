@@ -90,7 +90,8 @@ export async function POST(request: NextRequest) {
           .update({
             access_token: tokenData.access_token,
             refresh_token: tokenData.refresh_token,
-            token_expires_at: new Date(tokenData.access_token_expire_in * 1000).toISOString(),
+            token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            refresh_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq("id", connectionId);
@@ -106,7 +107,8 @@ export async function POST(request: NextRequest) {
         // Update connection object with new tokens
         connection.access_token = tokenData.access_token;
         connection.refresh_token = tokenData.refresh_token;
-        connection.token_expires_at = new Date(tokenData.access_token_expire_in * 1000).toISOString();
+        connection.token_expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        connection.refresh_token_expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
         console.log("[Sync] Token refreshed successfully");
       } catch (refreshError) {

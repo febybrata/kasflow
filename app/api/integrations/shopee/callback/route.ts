@@ -89,8 +89,7 @@ export async function GET(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const tokenExpiresAt = new Date(Date.now() + (tokenData.expire_in || 14400) * 1000).toISOString();
-    // Refresh token typically lasts 30 days
+    const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     const refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     // Check if connection already exists

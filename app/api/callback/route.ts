@@ -45,14 +45,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/integrations?error=missing_params", process.env.NEXT_PUBLIC_APP_URL || request.url));
   }
 
-  // Extract companyId from state (format: companyId_randomUuid)
-  // companyId contains dashes like "company_uid123", UUID has no underscores
-  // So split on last underscore: everything before = companyId, after = UUID
-  const lastUnderscoreIndex = state.lastIndexOf("_");
-  const companyId = state.substring(0, lastUnderscoreIndex);
+  let decodedState = state;
+  try {
+    if (state) {
+      const decoded = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+      if (decoded && decoded.originalState) {
+        decodedState = decoded.originalState;
+      }
+    }
+  } catch (e) {
+    // Fallback if state is not a valid base64 JSON
+  }
+
+  // Extract companyId from decodedState (format: companyId_randomUuid)
+  const lastUnderscoreIndex = decodedState.lastIndexOf("_");
+  const companyId = decodedState.substring(0, lastUnderscoreIndex);
 
   if (!companyId) {
-    console.error("[OAuth Callback] Could not extract companyId from state:", state);
+    console.error("[OAuth Callback] Could not extract companyId from state:", state, "decodedState:", decodedState);
     return NextResponse.redirect(new URL("/integrations?error=invalid_state", process.env.NEXT_PUBLIC_APP_URL || request.url));
   }
 
@@ -197,8 +207,8 @@ export async function GET(request: NextRequest) {
         seller_type: shop.seller_type,
         access_token: access_token,
         refresh_token: refresh_token,
-        token_expires_at: new Date(access_token_expire_in * 1000).toISOString(),
-        refresh_token_expires_at: new Date(refresh_token_expire_in * 1000).toISOString(),
+        token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        refresh_token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         status: "active",
         config: {
           open_id,
