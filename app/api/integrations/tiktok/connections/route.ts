@@ -17,9 +17,10 @@ export async function GET(request: NextRequest) {
 
     console.log("[Get Connections] Fetching connections for company:", companyId);
 
-    // Use REST API directly with service role key (bypasses RLS)
+    // Select only safe metadata columns (never expose access_token or refresh_token to client)
+    const safeColumns = "id,company_id,platform,shop_id,shop_name,display_name,shop_cipher,region,seller_type,token_expires_at,refresh_token_expires_at,last_sync_at,sync_start_date,status,created_at,updated_at";
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/marketplace_connections?company_id=eq.${encodeURIComponent(companyId)}&status=eq.active&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/marketplace_connections?select=${safeColumns}&company_id=eq.${encodeURIComponent(companyId)}&status=eq.active&order=created_at.desc`,
       {
         method: "GET",
         headers: {

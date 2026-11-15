@@ -14,7 +14,8 @@ export default async function AdminLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   // strict check
-  if (!user || user.email !== "ramadhaniahadita@gmail.com") {
+  const superAdminEmail = process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL || process.env.SUPERADMIN_EMAIL;
+  if (!user || !superAdminEmail || user.email !== superAdminEmail) {
     redirect("/");
   }
 

@@ -1,57 +1,82 @@
 name: Supabase Keep-Alive
 
-# Tujuan: ping Supabase REST API secara berkala agar project Free tier
-# tidak dipause otomatis setelah 7 hari tanpa aktivitas.
+# Tujuan: ping Supabase REST & Auth API secara berkala agar project Free tier
+# tidak di-pause otomatis setelah 7 hari tanpa aktivitas.
 #
-# Setup yang dibutuhkan (satu kali, di GitHub web):
+# Setup (di GitHub web):
 # 1. Buka repo → Settings → Secrets and variables → Actions
-# 2. Tambahkan 2 secrets:
-#    - SUPABASE_URL       (value: NEXT_PUBLIC_SUPABASE_URL dari .env.local)
-#    - SUPABASE_ANON_KEY  (value: NEXT_PUBLIC_SUPABASE_ANON_KEY dari .env.local)
+# 2. Tambahkan Repository Secrets:
+#    - SUPABASE_URL       (contoh: https://your-project.supabase.co)
+#    - SUPABASE_ANON_KEY  (Anon / Publishable Key dari Supabase)
+#    (Opsional jika ada project ke-2):
+#    - SUPABASE_URL_2
+#    - SUPABASE_ANON_KEY_2
 
 on:
-  # Cron schedule: Senin–Jumat pukul 00:00 UTC
-  # Format: 'menit jam hari bulan hari-minggu'
-  # 0 0 * * 1-5 = jam 00:00, hari kerja (1=Senin .. 5=Jumat)
   schedule:
-    - cron: '0 0 * * 1-5'
+    # Dijalankan setiap hari jam 03:00 UTC (10:00 WIB) & 15:00 UTC (22:00 WIB)
+    - cron: '0 3,15 * * *'
 
-  # Trigger manual dari tab Actions → "Run workflow" (untuk testing)
+  # Bisa di-trigger manual kapan saja dari GitHub Web UI
   workflow_dispatch:
 
 jobs:
   ping:
+    name: Ping Supabase Database & Auth
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
     steps:
-      - name: Ping Supabase REST API
+      - name: Ping Supabase Project
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL_2: ${{ secrets.SUPABASE_URL_2 }}
+          SUPABASE_ANON_KEY_2: ${{ secrets.SUPABASE_ANON_KEY_2 }}
         run: |
-          echo "Pinging $SUPABASE_URL ..."
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "ℹ️ SUPABASE_URL / SUPABASE_ANON_KEY belum diset di GitHub Secrets. Melewati ping."
+            exit 0
+          fi
 
-          # Query paling minimal: SELECT id, LIMIT 1 pada business_profiles.
-          # Pakai Anon Key karena query ini tidak butuh autentikasi user —
-          # service role tidak diperlukan di sini.
-          response=$(curl -sS -w "\n__HTTP_STATUS__:%{http_code}" \
+          echo "=== Pinging Primary Supabase Project ==="
+          rest_code=$(curl -sS -o /dev/null -w "%{http_code}" \
             -G \
             --data-urlencode "select=id" \
             --data-urlencode "limit=1" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
             "${SUPABASE_URL}/rest/v1/business_profiles")
+          echo "REST Status: $rest_code"
 
-          http_code=$(echo "$response" | grep "__HTTP_STATUS__:" | cut -d: -f2)
-          body=$(echo "$response" | grep -v "__HTTP_STATUS__:")
+          auth_code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/auth/v1/health")
+          echo "Auth Status: $auth_code"
 
-          echo "HTTP Status: $http_code"
-          echo "Response body: $body"
-
-          if [ "$http_code" != "200" ]; then
-            echo "❌ Keep-alive FAILED (HTTP $http_code)"
+          if [ "$rest_code" != "200" ] && [ "$auth_code" != "200" ]; then
+            echo "❌ Keep-alive FAILED on Primary Project"
             exit 1
           fi
+          echo "✅ Primary Project Keep-alive SUCCESS"
 
-          echo "✅ Keep-alive SUCCESS — Supabase project aktif"
+          if [ -n "$SUPABASE_URL_2" ] && [ -n "$SUPABASE_ANON_KEY_2" ]; then
+            echo "=== Pinging Secondary Supabase Project ==="
+            rest_code_2=$(curl -sS -o /dev/null -w "%{http_code}" \
+              -G \
+              --data-urlencode "select=id" \
+              --data-urlencode "limit=1" \
+              -H "apikey: ${SUPABASE_ANON_KEY_2}" \
+              "${SUPABASE_URL_2}/rest/v1/business_profiles")
+            echo "Secondary REST Status: $rest_code_2"
+
+            auth_code_2=$(curl -sS -o /dev/null -w "%{http_code}" \
+              -H "apikey: ${SUPABASE_ANON_KEY_2}" \
+              "${SUPABASE_URL_2}/auth/v1/health")
+            echo "Secondary Auth Status: $auth_code_2"
+
+            if [ "$rest_code_2" != "200" ] && [ "$auth_code_2" != "200" ]; then
+              echo "❌ Keep-alive FAILED on Secondary Project"
+              exit 1
+            fi
+            echo "✅ Secondary Project Keep-alive SUCCESS"
+          fi

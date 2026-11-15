@@ -102,7 +102,10 @@ function ConnectionCard({
   const router = useRouter();
   const { companyId } = useKasFlowStore();
   const { appUser } = useAuth();
-  const isSuperAdmin = appUser?.email === "ramadhaniahadita@gmail.com";
+  const isSuperAdmin = Boolean(
+    process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL &&
+    appUser?.email === process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL
+  );
   
   const [syncDatePreset, setSyncDatePreset] = useState("this_month");
   const [syncStartDate, setSyncStartDate] = useState(getThisMonthStartDate);

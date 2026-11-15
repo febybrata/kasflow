@@ -275,7 +275,7 @@ function ProfileMenu({
           })}
         </div>
 
-        {appUser?.email === "ramadhaniahadita@gmail.com" && (
+        {Boolean(process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL && appUser?.email === process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL) && (
           <div className="px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800/60 bg-rose-50/50 dark:bg-rose-950/20">
             <Link
               href="/admin"
@@ -430,7 +430,7 @@ function MobileMenu({
             </div>
           </div>
 
-          {appUser?.email === "ramadhaniahadita@gmail.com" && (
+          {Boolean(process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL && appUser?.email === process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL) && (
             <div className="mt-4">
               <div className="flex items-center gap-2 px-4 mb-1.5">
                 <div className="h-px flex-1 bg-rose-200/60 dark:bg-rose-800/40" />

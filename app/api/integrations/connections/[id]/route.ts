@@ -24,9 +24,10 @@ export async function PATCH(
     // Clean up empty strings to null
     const newDisplayName = display_name?.trim() ? display_name.trim() : null;
 
-    // We use the REST API directly to bypass RLS and use service role key
+    // Select only safe metadata columns (never expose access_token or refresh_token to client)
+    const safeColumns = "id,company_id,platform,shop_id,shop_name,display_name,shop_cipher,region,seller_type,token_expires_at,refresh_token_expires_at,last_sync_at,sync_start_date,status,created_at,updated_at";
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/marketplace_connections?id=eq.${id}&company_id=eq.${encodeURIComponent(companyId)}`,
+      `${supabaseUrl}/rest/v1/marketplace_connections?select=${safeColumns}&id=eq.${id}&company_id=eq.${encodeURIComponent(companyId)}`,
       {
         method: "PATCH",
         headers: {
